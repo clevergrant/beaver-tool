@@ -1,0 +1,731 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Russo+One&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --cell-size: 20px;
+  --panel-bg: #d4cdb8;
+  --panel-border: #8a8270;
+  --panel-dark: #2a2a28;
+  --panel-inset: #b8b0a0;
+  --bezel-outer: #5c5a52;
+  --bezel-inner: #3a3a36;
+  --label-bg: #1a1a18;
+  --label-text: #e8e4d4;
+  --screw: #9a9488;
+  --led-off: #3a2020;
+  --led-red: #ff3030;
+  --led-green: #30ff60;
+  --led-amber: #ffaa20;
+  --glow-green: rgba(48, 255, 96, 0.4);
+  --glow-red: rgba(255, 48, 48, 0.3);
+  --glow-amber: rgba(255, 170, 32, 0.4);
+  --switch-handle: #c0392b;
+  --switch-plate: #7a7868;
+  --console-bg: #1e1e1c;
+  --gauge-face: #f0ece0;
+  --gauge-needle: #c0392b;
+  --gauge-ring: #4a4840;
+  --editor-margin: 40px;
+}
+
+body {
+  font-family: 'Share Tech Mono', monospace;
+  background: var(--console-bg);
+  background-image:
+    radial-gradient(ellipse at 50% 0%, #2a2a28 0%, #1e1e1c 70%),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  color: #e0ddd0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === HEADER STRIP === */
+.header-strip {
+  background: var(--panel-dark);
+  border: 2px solid #4a4a44;
+  border-radius: 4px;
+  padding: 0.4rem 1rem;
+  margin: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.5);
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.header-title {
+  font-family: 'Russo One', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--label-text);
+  text-shadow: 0 0 10px rgba(255,170,32,0.3);
+}
+
+.header-indicators {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.jewel-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8a8880;
+}
+
+.header-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #3a3a36;
+  border: 1px solid #5a5a54;
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8a8880;
+  transition: all 0.3s;
+}
+
+.header-btn:hover {
+  background: #4a4a44;
+  color: #c0bdb0;
+}
+
+.header-btn.active {
+  background: #4a3020;
+  border-color: #8a5a30;
+  color: #ffaa20;
+  box-shadow: 0 0 8px rgba(255,170,32,0.2);
+}
+
+/* === GRID CONTAINER === */
+#grid-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+#grid-viewport {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* Grid dot pattern */
+#grid-viewport::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 2px, transparent 2px);
+  background-size: var(--cell-size) var(--cell-size);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Edit mode: brighter grid dots */
+#grid-viewport.editing::before {
+  background-image: radial-gradient(circle, rgba(255,170,32,0.08) 2px, transparent 2px);
+}
+
+/* === COMPONENT BOX (on grid) === */
+.component-box {
+  position: absolute;
+  border-radius: 6px;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  cursor: default;
+  transition: box-shadow 0.2s;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.component-box:hover {
+  box-shadow:
+    0 6px 20px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+/* Edit mode: move cursor and visual cues */
+#grid-viewport.editing .component-box {
+  outline: 1px dashed rgba(255,170,32,0.3);
+  outline-offset: -1px;
+  cursor: move;
+}
+
+/* Resize handle triangle — bottom-right corner */
+#grid-viewport.editing .component-box::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, transparent 50%, rgba(255,170,32,0.45) 50%);
+  border-radius: 0 0 6px 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* === EDITOR OVERLAY === */
+.editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.editor-overlay.open {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.editor-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.editor-overlay.open .editor-backdrop {
+  opacity: 1;
+}
+
+.editor-frame {
+  position: relative;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+  overflow: visible;
+  z-index: 1;
+}
+
+/* === EDITOR MODES (surface & circuitry) === */
+.editor-modes {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 8px;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.editor-surface-content > :not(.surface-el-wrapper) {
+  pointer-events: none;
+}
+
+/* Surface element editor wrappers */
+.surface-el-wrapper {
+  position: absolute;
+  cursor: grab;
+  border-radius: 3px;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  transition: outline-color 0.15s, box-shadow 0.15s;
+  z-index: 2;
+}
+
+.surface-el-wrapper > :first-child {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.surface-el-wrapper:hover {
+  outline-color: rgba(255,170,32,0.5);
+  box-shadow: 0 0 8px rgba(255,170,32,0.15);
+}
+
+.surface-el-wrapper:active {
+  cursor: grabbing;
+}
+
+.surface-el-wrapper.no-resize {
+  cursor: grab;
+}
+
+.surface-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, transparent 50%, rgba(255,170,32,0.7) 50%);
+  border-radius: 0 0 3px 0;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 3;
+}
+
+.surface-el-wrapper:hover .surface-resize-handle {
+  opacity: 1;
+}
+
+/* Ghost preview for surface element placement */
+.surface-ghost {
+  position: absolute;
+  border-radius: 4px;
+  border: 2px dashed rgba(255,170,32,0.6);
+  background: rgba(255,170,32,0.08);
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.15s;
+}
+
+.surface-ghost.blocked {
+  border-color: rgba(255,68,68,0.6);
+  background: rgba(255,68,68,0.08);
+}
+
+/* Surface element properties panel (overwrite controls) */
+.surface-props-panel {
+  position: absolute;
+  background: #2a2a26;
+  border: 1px solid #5a5a52;
+  border-radius: 4px;
+  padding: 6px 8px;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  min-width: 180px;
+}
+
+.surface-props-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.surface-props-check {
+  accent-color: #ffaa20;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.surface-props-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: #8a8a7a;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+.surface-props-input {
+  flex: 1;
+  background: #1a1a18;
+  border: 1px solid #4a4a42;
+  border-radius: 3px;
+  color: #e0ddd0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  padding: 2px 5px;
+  outline: none;
+  min-width: 0;
+}
+
+.surface-props-input:focus {
+  border-color: #ffaa20;
+}
+
+.surface-props-input:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Disabled context menu item (no room) */
+.ctx-menu-item.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ctx-menu-item.disabled:hover {
+  background: transparent;
+  color: #e0ddd0;
+}
+
+/* Grid dots on the surface editor */
+.editor-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(0,0,0,0.15) 2px, transparent 2px);
+  background-size: var(--cell-size) var(--cell-size);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 8px;
+}
+
+.editor-circuitry {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* When circuitry mode is active, surface slides up-right */
+.editor-modes.circuitry-active .editor-surface {
+  transform: translate(100%, -100%);
+}
+
+/* === EDITOR TOOLBAR === */
+.editor-toolbar {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+}
+
+.editor-toolbar button {
+  background: #2a2a28;
+  border: none;
+  border-radius: 6px;
+  color: #aaa;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.editor-toolbar button:hover {
+  background: #3a3a36;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+  transform: translateY(-1px);
+}
+
+.editor-toolbar button.active {
+  background: #3a2a10;
+  color: #ffaa20;
+  box-shadow: 0 2px 6px rgba(255,170,32,0.25);
+}
+
+/* === NODE EDITOR (circuitry canvas) === */
+.node-canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.node-canvas:active {
+  cursor: grabbing;
+}
+
+.node-canvas-inner {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+}
+
+.node-canvas svg.connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.node-canvas svg.connections path {
+  fill: none;
+  stroke: #ffaa20;
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+.node-box {
+  position: absolute;
+  background: #2a2a28;
+  border: 1px solid #5a5a54;
+  border-radius: 4px;
+  min-width: 120px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: #e0ddd0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  cursor: move;
+  z-index: 2;
+  user-select: none;
+}
+
+.node-header {
+  background: #3a3a36;
+  padding: 4px 8px;
+  border-radius: 3px 3px 0 0;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #4a4a44;
+}
+
+.node-header.input { color: var(--led-green); }
+.node-header.output { color: var(--led-amber); }
+.node-header.transform { color: #60a0ff; }
+
+.node-body {
+  padding: 6px 8px;
+}
+
+.node-port {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5a5a54;
+  border: 2px solid #3a3a36;
+  cursor: crosshair;
+  z-index: 3;
+}
+
+.node-port.input-port {
+  left: -5px;
+}
+
+.node-port.output-port {
+  right: -5px;
+}
+
+.node-port:hover {
+  background: var(--led-amber);
+  box-shadow: 0 0 6px var(--glow-amber);
+}
+
+/* Re-center button */
+.recenter-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  color: #ccc;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.recenter-btn:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+/* === COLOR SELECTOR FAB === */
+.color-selector {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 3000;
+}
+
+/* === SCANLINE OVERLAY === */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.03) 3px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 600px) {
+  .header-title { font-size: 0.7rem; letter-spacing: 0.15em; }
+  .header-strip { flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+}
+
+/* === CONTEXT MENU === */
+.ctx-menu {
+  position: fixed;
+  z-index: 2000;
+  background: #2a2a28;
+  border: 1px solid #5a5a54;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  min-width: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  padding: 4px 0;
+}
+
+.ctx-menu-header {
+  padding: 6px 12px;
+  color: #8a8880;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #3a3a36;
+}
+
+.ctx-menu-item {
+  padding: 6px 12px;
+  color: #e0ddd0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.1s;
+}
+
+.ctx-menu-item:hover {
+  background: rgba(255,170,32,0.15);
+  color: #ffaa20;
+}
+
+.ctx-menu-item .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ctx-menu-item .dot.on { background: var(--led-green); box-shadow: 0 0 4px var(--glow-green); }
+.ctx-menu-item .dot.off { background: var(--led-red); }
+
+.ctx-menu-item .type-tag {
+  margin-left: auto;
+  color: #5a5a54;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.ctx-menu-empty {
+  padding: 12px;
+  color: #5a5a54;
+  font-style: italic;
+  text-align: center;
+}
+
+.ctx-menu-sep {
+  height: 1px;
+  background: #3a3a36;
+  margin: 4px 0;
+}
+
+.ctx-menu-new {
+  color: #8a8880;
+}
+
+.ctx-menu-new-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px dashed #5a5a54;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ctx-menu-new:hover .ctx-menu-new-icon {
+  border-color: #ffaa20;
+  color: #ffaa20;
+}
+
+.ctx-menu-edit-icon {
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.ctx-menu-delete {
+  color: #ff4444;
+}
+.ctx-menu-delete:hover {
+  background: rgba(255, 68, 68, 0.15);
+  color: #ff6666;
+}
+.ctx-menu-delete-icon {
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* Hide resize triangle on non-resizable components */
+#grid-viewport.editing .component-box.no-resize::after {
+  display: none;
+}
+
+/* === CONTEXT MENU: Surface Component Items === */
+.ctx-menu-surface-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #ffaa20;
+  opacity: 0.8;
+}
+
+.ctx-menu-surface-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ctx-menu-surface-item:hover .ctx-menu-surface-icon {
+  opacity: 1;
+}
+
+/* === EMPTY STATE === */
+.empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #5a5a54;
+  font-style: italic;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+  padding: 3rem;
+  border: 1px dashed #3a3a36;
+  border-radius: 4px;
+}

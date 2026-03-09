@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timberborn Mission Control</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- HEADER STRIP -->
+  <div class="header-strip">
+    <div class="header-title">Timberborn Colony Control</div>
+    <div class="header-indicators">
+      <div class="jewel-indicator">
+        <tb-led id="conn-led" color="red" size="10"></tb-led>
+        <span id="conn-text">Link Down</span>
+      </div>
+      <button class="header-btn" id="edit-btn" title="Toggle grid editing mode">
+        <span id="edit-icon">&#128297;</span>
+        <span id="edit-label">Locked</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div id="grid-container">
+    <div id="grid-viewport"></div>
+  </div>
+
+  <!-- Web Components -->
+  <script src="/components/shared-styles.js"></script>
+  <script src="/components/surface/tb-surface-component.js"></script>
+  <script src="/components/surface/tb-led.js"></script>
+  <script src="/components/surface/tb-label.js"></script>
+  <script src="/components/surface/tb-dial.js"></script>
+  <script src="/components/surface/tb-toggle.js"></script>
+  <script src="/components/surface/tb-alert.js"></script>
+  <script src="/components/tb-color-selector.js"></script>
+  <script src="/components/tb-node-editor.js"></script>
+  <script src="/components/tb-component.js"></script>
+
+  <!-- App -->
+  <script src="/js/grid.js"></script>
+  <script src="/js/surface-components.js"></script>
+  <script src="/js/surface-registry.js"></script>
+  <script src="/js/context-menu.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
