@@ -1,0 +1,35 @@
+name: Build Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build dist
+        run: node installer/build.js
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile installer
+        run: iscc installer/setup.iss
+        env:
+          TIMBERBORN_TOOL_VERSION: ${{ github.ref_name }}
+
+      - name: Upload installer to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: output/*.exe

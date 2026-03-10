@@ -1,6 +1,6 @@
-require("dotenv").config();
 const path = require("path");
 const http = require("http");
+const { PORT, GAME_API, DISCORD_TOKEN } = require("./lib/config");
 const c = require("./lib/colors");
 const log = require("./lib/log");
 const createHandler = require("./lib/routes");
@@ -8,9 +8,6 @@ const createDiscordBot = require("./lib/discord");
 const setupWebSocket = require("./lib/websocket");
 const { setGameApi: setStateGameApi, startPolling, stopPolling, onGameStatus, devices } = require("./lib/state");
 const { writePidFile, clearPidFile } = require("./lib/daemon");
-
-const PORT = process.env.TB_PORT ? parseInt(process.env.TB_PORT) : 3000;
-const GAME_API = process.env.TB_GAME_API || "http://localhost:300/api";
 
 // --- Headless mode (background server) ---
 log.setHeadless(true);
@@ -93,7 +90,7 @@ server.listen(PORT, () => {
   startPolling();
   log.server(`Listening on port ${c.bold}${PORT}${c.reset}`);
   log.server(`Game API: ${c.dim}${GAME_API}${c.reset}`);
-  if (process.env.DISCORD_BOT_TOKEN) {
+  if (DISCORD_TOKEN) {
     log.discord(`Bot accepting DMs`);
   }
 });

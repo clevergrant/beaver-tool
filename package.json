@@ -1,14 +1,20 @@
 {
-  "name": "timberborn-dashboard",
-  "description": "Timberborn colony dashboard — procedural grid, node graph editor",
+  "name": "timberborn-tool",
+  "description": "Web interface and CLI for controlling Timberborn colonies via the game's HTTP API",
   "private": true,
+  "license": "MIT",
   "bin": {
     "tb": "./bin/tb.js"
+  },
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "start": "node server.js",
     "dev": "npx nodemon server.js",
-    "tb": "node bin/tb.js"
+    "tb": "node bin/tb.js",
+    "build:dist": "node installer/build.js"
   },
   "dependencies": {
     "discord.js": "^14.25.1",
