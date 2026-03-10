@@ -611,17 +611,30 @@ class TbNodeEditor extends HTMLElement {
   }
 
   _recenter() {
-    const target = this._nodes.length > 0
-      ? { x: -this._nodes[0].x * this._zoom + this._canvas.clientWidth / 2 - 70, y: -this._nodes[0].y * this._zoom + this._canvas.clientHeight / 2 - 30 }
-      : { x: this._canvas.clientWidth / 2, y: this._canvas.clientHeight / 2 };
+    if (this._nodes.length === 0) {
+      this._pan = { x: this._canvas.clientWidth / 2, y: this._canvas.clientHeight / 2 };
+    } else {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of this._nodes) {
+        const w = n._el ? n._el.offsetWidth : 140;
+        const h = n._el ? n._el.offsetHeight : 60;
+        if (n.x < minX) minX = n.x;
+        if (n.y < minY) minY = n.y;
+        if (n.x + w > maxX) maxX = n.x + w;
+        if (n.y + h > maxY) maxY = n.y + h;
+      }
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      this._pan = {
+        x: this._canvas.clientWidth / 2 - cx,
+        y: this._canvas.clientHeight / 2 - cy,
+      };
+    }
 
     this._inner.style.transition = "transform 0.3s ease";
-    this._pan = target;
     this._zoom = 1;
     this._updateTransform();
-    setTimeout(() => {
-      this._inner.style.transition = "";
-    }, 300);
+    setTimeout(() => { this._inner.style.transition = ""; }, 300);
   }
 
   // --- Zoom ---
