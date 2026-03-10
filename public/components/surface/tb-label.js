@@ -37,7 +37,8 @@ class TbLabel extends TbSurfaceComponent {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: block;
+          display: grid;
+          place-items: center;
           width: 100%;
           height: 100%;
         }
@@ -46,14 +47,13 @@ class TbLabel extends TbSurfaceComponent {
           box-sizing: border-box;
           width: 100%;
           height: 100%;
-          display: flex;
-          align-items: center;
+          display: grid;
+          place-items: center;
           font-family: 'Share Tech Mono', monospace;
           letter-spacing: 0.15em;
           text-transform: uppercase;
           overflow: hidden;
           white-space: nowrap;
-          padding: 2px 6px;
         }
 
         .text-inner {
@@ -117,8 +117,7 @@ class TbLabel extends TbSurfaceComponent {
   }
 
   _onMouseEnter() {
-    const padding = 12; // 6px left + 6px right
-    const overflowPx = this._textInner.scrollWidth - (this._label.clientWidth - padding);
+    const overflowPx = this._textInner.scrollWidth - this._label.clientWidth;
     if (overflowPx <= 0) return;
 
     const duration = Math.max(1.5, overflowPx / 40);
@@ -149,7 +148,7 @@ class TbLabel extends TbSurfaceComponent {
     this._label.className = "label " + styleType;
     this._textInner.textContent = displayText;
     this._label.style.fontSize = fontSize;
-    this._label.style.justifyContent = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    this._label.style.justifyItems = align === "left" ? "start" : align === "right" ? "end" : "center";
     if (color) this._label.style.color = color;
   }
 }

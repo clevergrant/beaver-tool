@@ -28,11 +28,8 @@ class TbToggle extends TbSurfaceComponent {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
+          display: grid;
+          place-items: center;
           cursor: pointer;
           user-select: none;
         }

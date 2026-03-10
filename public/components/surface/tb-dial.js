@@ -27,9 +27,8 @@ class TbDial extends TbSurfaceComponent {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          display: grid;
+          place-items: center;
         }
 
         .dial-frame {

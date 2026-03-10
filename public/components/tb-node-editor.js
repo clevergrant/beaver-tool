@@ -254,6 +254,48 @@ class TbNodeEditor extends HTMLElement {
           letter-spacing: 0.1em;
           background: #222;
         }
+
+        .context-menu-accordion {
+          border-bottom: 1px solid #3a3a36;
+        }
+
+        .context-menu-accordion-trigger {
+          padding: 6px 12px;
+          cursor: pointer;
+          color: #999;
+          font-size: 0.55rem;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          background: #252523;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          user-select: none;
+        }
+
+        .context-menu-accordion-trigger:hover {
+          background: rgba(255,170,32,0.08);
+          color: #ccc;
+        }
+
+        .context-menu-accordion-arrow {
+          transition: transform 0.15s ease;
+          font-size: 0.5rem;
+        }
+
+        .context-menu-accordion.open .context-menu-accordion-arrow {
+          transform: rotate(90deg);
+        }
+
+        .context-menu-accordion-body {
+          display: none;
+          max-height: 180px;
+          overflow-y: auto;
+        }
+
+        .context-menu-accordion.open .context-menu-accordion-body {
+          display: block;
+        }
       </style>
 
       <div class="canvas">
@@ -412,9 +454,25 @@ class TbNodeEditor extends HTMLElement {
   _showContextMenu(x, y) {
     this._buildContextMenuItems();
     const hostRect = this.getBoundingClientRect();
-    this._contextMenu.style.left = (x - hostRect.left) + "px";
-    this._contextMenu.style.top = (y - hostRect.top) + "px";
+    let left = x - hostRect.left;
+    let top = y - hostRect.top;
+    this._contextMenu.style.left = left + "px";
+    this._contextMenu.style.top = top + "px";
     this._contextMenu.classList.add("visible");
+
+    // Clamp within the circuitry box boundaries
+    const menuRect = this._contextMenu.getBoundingClientRect();
+    if (menuRect.right > hostRect.right) {
+      left -= menuRect.right - hostRect.right;
+    }
+    if (menuRect.bottom > hostRect.bottom) {
+      top -= menuRect.bottom - hostRect.bottom;
+    }
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    this._contextMenu.style.left = left + "px";
+    this._contextMenu.style.top = top + "px";
+
     this._bindContextMenuClicks();
   }
 
@@ -431,17 +489,31 @@ class TbNodeEditor extends HTMLElement {
     let html = "";
 
     if (levers.length) {
-      html += `<div class="context-menu-header">Levers</div>`;
+      let items = "";
       for (const name of levers) {
-        html += `<div class="context-menu-item" data-type="lever" data-device="${name}">${name}</div>`;
+        items += `<div class="context-menu-item" data-type="lever" data-device="${name}">${name}</div>`;
       }
+      html += `<div class="context-menu-accordion">
+        <div class="context-menu-accordion-trigger">
+          <span>Levers (${levers.length})</span>
+          <span class="context-menu-accordion-arrow">&#9654;</span>
+        </div>
+        <div class="context-menu-accordion-body">${items}</div>
+      </div>`;
     }
 
     if (adapters.length) {
-      html += `<div class="context-menu-header">Adapters</div>`;
+      let items = "";
       for (const name of adapters) {
-        html += `<div class="context-menu-item" data-type="adapter" data-device="${name}">${name}</div>`;
+        items += `<div class="context-menu-item" data-type="adapter" data-device="${name}">${name}</div>`;
       }
+      html += `<div class="context-menu-accordion">
+        <div class="context-menu-accordion-trigger">
+          <span>Adapters (${adapters.length})</span>
+          <span class="context-menu-accordion-arrow">&#9654;</span>
+        </div>
+        <div class="context-menu-accordion-body">${items}</div>
+      </div>`;
     }
 
     if (!levers.length && !adapters.length) {
@@ -454,6 +526,13 @@ class TbNodeEditor extends HTMLElement {
   }
 
   _bindContextMenuClicks() {
+    for (const trigger of this._contextMenu.querySelectorAll(".context-menu-accordion-trigger")) {
+      trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        trigger.parentElement.classList.toggle("open");
+      });
+    }
+
     for (const item of this._contextMenu.querySelectorAll(".context-menu-item")) {
       item.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -679,10 +758,11 @@ class TbNodeEditor extends HTMLElement {
         menu.appendChild(item);
         document.body.appendChild(menu);
 
-        // Keep within viewport
+        // Keep within circuitry box boundaries
+        const hostRect = this.getBoundingClientRect();
         const menuRect = menu.getBoundingClientRect();
-        if (menuRect.right > window.innerWidth) menu.style.left = (e.clientX - menuRect.width) + "px";
-        if (menuRect.bottom > window.innerHeight) menu.style.top = (e.clientY - menuRect.height) + "px";
+        if (menuRect.right > hostRect.right) menu.style.left = (e.clientX - menuRect.width) + "px";
+        if (menuRect.bottom > hostRect.bottom) menu.style.top = (e.clientY - menuRect.height) + "px";
 
         const dismiss = () => { menu.remove(); document.removeEventListener("click", dismiss); };
         document.addEventListener("click", dismiss);

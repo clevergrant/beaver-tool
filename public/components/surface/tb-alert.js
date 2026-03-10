@@ -33,17 +33,13 @@ class TbAlert extends TbSurfaceComponent {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
+          display: grid;
+          place-items: center;
         }
 
         .alert-led {
           border-radius: 50%;
           transition: background 0.1s;
-          flex-shrink: 0;
         }
 
         .alert-label {

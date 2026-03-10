@@ -28,25 +28,14 @@ class TbLed extends TbSurfaceComponent {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        :host([label-pos="top"]),
-        :host([label-pos="bottom"]) {
-          flex-direction: column;
-        }
-
-        :host([label-pos="left"]) {
-          flex-direction: row-reverse;
+          display: grid;
+          place-items: center;
         }
 
         .led {
           border-radius: 50%;
           box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
           transition: background 0.3s, box-shadow 0.3s;
-          flex-shrink: 0;
         }
 
         .led.on {
