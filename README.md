@@ -1,6 +1,6 @@
 # Timberborn Colony Web Interface
 
-A website for interacting with your beaver colony in Timberborn via the game's built-in HTTP API.
+A website for interacting with your beaver colony in [Timberborn](https://timberborn.io/) via the game's built-in HTTP API.
 
 ## How It Works
 
@@ -13,9 +13,5 @@ This web interface connects to that API to monitor and control your colony's aut
 
 ## API Reference
 
-See [docs/timberborn-automation.md](docs/timberborn-automation.md) for the full automation system reference including:
-- All automation buildings (sensors, logic, outputs)
-- HTTP API endpoints
-- Bot system details
-- Save file format
-- Modding ecosystem
+- [docs/timberborn-api.md](docs/timberborn-api.md) -- official HTTP API guide (from [timberborn.io](https://timberborn.io/))
+- [docs/timberborn-automation.md](docs/timberborn-automation.md) -- full automation system reference (buildings, bots, save format, modding)

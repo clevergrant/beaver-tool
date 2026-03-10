@@ -161,7 +161,7 @@ body {
 
 /* Edit mode: move cursor and visual cues */
 #grid-viewport.editing .component-box {
-  outline: 1px dashed rgba(255,170,32,0.3);
+  outline: 1px dashed color-mix(in srgb, var(--comp-hl, #ffaa20) 30%, transparent);
   outline-offset: -1px;
   cursor: move;
 }
@@ -174,7 +174,7 @@ body {
   bottom: 0;
   width: 14px;
   height: 14px;
-  background: linear-gradient(135deg, transparent 50%, rgba(255,170,32,0.45) 50%);
+  background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--comp-hl, #ffaa20) 45%, transparent) 50%);
   border-radius: 0 0 6px 0;
   pointer-events: none;
   z-index: 2;
@@ -256,8 +256,8 @@ body {
 }
 
 .surface-el-wrapper:hover {
-  outline-color: rgba(255,170,32,0.5);
-  box-shadow: 0 0 8px rgba(255,170,32,0.15);
+  outline-color: color-mix(in srgb, var(--comp-hl, #ffaa20) 50%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, transparent);
 }
 
 .surface-el-wrapper:active {
@@ -274,7 +274,7 @@ body {
   bottom: 0;
   width: 12px;
   height: 12px;
-  background: linear-gradient(135deg, transparent 50%, rgba(255,170,32,0.7) 50%);
+  background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--comp-hl, #ffaa20) 70%, transparent) 50%);
   border-radius: 0 0 3px 0;
   cursor: nwse-resize;
   opacity: 0;
@@ -290,8 +290,8 @@ body {
 .surface-ghost {
   position: absolute;
   border-radius: 4px;
-  border: 2px dashed rgba(255,170,32,0.6);
-  background: rgba(255,170,32,0.08);
+  border: 2px dashed color-mix(in srgb, var(--comp-hl, #ffaa20) 60%, transparent);
+  background: color-mix(in srgb, var(--comp-hl, #ffaa20) 8%, transparent);
   pointer-events: none;
   z-index: 10;
   transition: opacity 0.15s;
@@ -322,7 +322,7 @@ body {
 }
 
 .surface-props-check {
-  accent-color: #ffaa20;
+  accent-color: var(--comp-hl, #ffaa20);
   width: 14px;
   height: 14px;
   cursor: pointer;
@@ -353,7 +353,7 @@ body {
 }
 
 .surface-props-input:focus {
-  border-color: #ffaa20;
+  border-color: var(--comp-hl, #ffaa20);
 }
 
 .surface-props-input:disabled {
@@ -376,12 +376,11 @@ body {
 .editor-surface::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: var(--cell-size);
   background-image: radial-gradient(circle, rgba(0,0,0,0.15) 2px, transparent 2px);
   background-size: var(--cell-size) var(--cell-size);
   pointer-events: none;
   z-index: 1;
-  border-radius: 8px;
 }
 
 .editor-circuitry {
@@ -431,9 +430,9 @@ body {
 }
 
 .editor-toolbar button.active {
-  background: #3a2a10;
-  color: #ffaa20;
-  box-shadow: 0 2px 6px rgba(255,170,32,0.25);
+  background: color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, #2a2a28);
+  color: var(--comp-hl, #ffaa20);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--comp-hl, #ffaa20) 25%, transparent);
 }
 
 /* === NODE EDITOR (circuitry canvas) === */

@@ -9,6 +9,8 @@
  */
 
 const CELL_SIZE = 20;
+const COMP_MIN_WIDTH = 8;
+const COMP_MIN_HEIGHT = 5;
 
 class Grid {
   /**
@@ -19,6 +21,7 @@ class Grid {
    * @param {boolean} [opts.listenToWindowResize] - Listen to window resize (default true; false uses ResizeObserver)
    * @param {Function} [opts.onComponentAdded] - Callback(id, el) when a component is added
    * @param {Function} [opts.onComponentRemoved] - Callback(id) when a component is removed
+   * @param {Function} [opts.onLayoutChange] - Callback(id, {x, y, w, h}) when a component moves/resizes
    * @param {boolean} [opts.bare] - If true, don't add component-box class or box styling
    */
   constructor(containerEl, viewportEl, opts = {}) {
@@ -27,6 +30,7 @@ class Grid {
     this.storageKey = opts.storageKey !== undefined ? opts.storageKey : "timberborn-grid-layout";
     this.onComponentAdded = opts.onComponentAdded || null;
     this.onComponentRemoved = opts.onComponentRemoved || null;
+    this.onLayoutChange = opts.onLayoutChange || null;
     this.bare = !!opts.bare;
     this.components = new Map(); // id -> { el, x, y, w, h, minW, minH, config }
     this.editing = false;
@@ -83,8 +87,8 @@ class Grid {
   /** Place a component on the grid */
   addComponent(id, el, config) {
     const saved = this._savedLayout[id];
-    const minW = config.minWidth ?? 4;
-    const minH = config.minHeight ?? 4;
+    const minW = config.minWidth ?? COMP_MIN_WIDTH;
+    const minH = config.minHeight ?? COMP_MIN_HEIGHT;
     let maxW = config.maxWidth ?? null;
     let maxH = config.maxHeight ?? null;
     // If max is smaller than min, treat it as min (no resize room)
@@ -176,8 +180,13 @@ class Grid {
     }
   }
 
-  /** Save layout to localStorage */
+  /** Save layout to localStorage and notify via callback */
   _saveLayout() {
+    if (this.onLayoutChange) {
+      for (const [id, comp] of this.components) {
+        this.onLayoutChange(id, { x: comp.x, y: comp.y, w: comp.w, h: comp.h });
+      }
+    }
     if (!this.storageKey) return;
     const layout = {};
     for (const [id, comp] of this.components) {
@@ -363,3 +372,5 @@ class Grid {
 
 window.Grid = Grid;
 window.CELL_SIZE = CELL_SIZE;
+window.COMP_MIN_WIDTH = COMP_MIN_WIDTH;
+window.COMP_MIN_HEIGHT = COMP_MIN_HEIGHT;

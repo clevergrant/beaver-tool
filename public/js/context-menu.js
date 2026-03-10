@@ -180,15 +180,9 @@
       const gridX = Math.floor((e.clientX - vpRect.left + gridContainer.scrollLeft) / CELL_SIZE);
       const gridY = Math.floor((e.clientY - vpRect.top + gridContainer.scrollTop) / CELL_SIZE);
 
-      // Surface component items (only in editing mode)
-      const surfaceItems = gridViewport.classList.contains("editing")
-        ? window.SurfaceComponents.getAll().map(def => ({
-            name: def.name,
-            icon: def.icon,
-            sizeLabel: def.resizable ? `${def.width}×${def.height}+` : `${def.width}×${def.height}`,
-            action: () => addSurfaceComponent(def.type, gridX, gridY, { getConfig, saveConfig, buildComponents }),
-          }))
-        : [];
+      // Surface components (LED, Label, etc.) are only for component surfaces,
+      // not the main dashboard grid — so we pass an empty list here.
+      const surfaceItems = [];
 
       const onNew = () => addBlankComponent(gridX, gridY, { getConfig, saveConfig, buildComponents });
       show(e.clientX, e.clientY, { surfaceItems, onNew });
@@ -206,16 +200,16 @@
       name: "Panel " + n,
       x: gridX,
       y: gridY,
-      minWidth: 8,
-      minHeight: 6,
+      minWidth: COMP_MIN_WIDTH,
+      minHeight: COMP_MIN_HEIGHT,
       color: "#d4cdb8",
       surface: [],
       circuitry: { nodes: [], edges: [] },
     };
 
     config.components.push(comp);
-    buildComponents();
     await saveConfig(config);
+    buildComponents();
   }
 
   async function addSurfaceComponent(type, gridX, gridY, { getConfig, saveConfig, buildComponents }) {
@@ -226,16 +220,16 @@
     if (!config.components) config.components = [];
     config.components.push(comp);
 
-    buildComponents();
     await saveConfig(config);
+    buildComponents();
   }
 
   async function deleteComponent(id, { getConfig, saveConfig, buildComponents }) {
     const config = getConfig();
     if (!config.components) return;
     config.components = config.components.filter(c => c.id !== id);
-    buildComponents();
     await saveConfig(config);
+    buildComponents();
   }
 
   window.initContextMenu = initContextMenu;

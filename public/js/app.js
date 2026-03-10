@@ -1,14 +1,17 @@
 /**
  * App — Main bootstrap and coordinator for Timberborn Dashboard.
  *
- * Loads config from server, builds grid, places components,
- * connects WebSocket for live device state updates.
+ * Loads component data from the two-layer Store (localStorage),
+ * places them on the grid via an async placement queue,
+ * and connects WebSocket for live device state updates.
  */
 
 let ws;
 let grid;
-let config = { title: "Timberborn Colony Control", components: [] };
 let deviceState = {};
+
+/** In-memory component data keyed by id, loaded from Store. */
+const componentData = new Map();
 
 const gridContainer = document.getElementById("grid-container");
 const gridViewport = document.getElementById("grid-viewport");
@@ -20,9 +23,12 @@ const editLabel = document.getElementById("edit-label");
 
 let editing = false;
 
-// --- Grid Init ---
+// --- Grid Init (no built-in layout persistence — Store handles it) ---
 
-grid = new Grid(gridContainer, gridViewport);
+grid = new Grid(gridContainer, gridViewport, {
+  storageKey: null,
+  onLayoutChange: (id, pos) => Store.saveLayout(id, pos),
+});
 
 // --- Edit Toggle ---
 
@@ -41,42 +47,110 @@ editBtn.addEventListener("click", () => {
   }
 });
 
-// --- Config Loading ---
+// --- Placement Queue ---
+// Components are loaded asynchronously one at a time so each can validate
+// its position against components already on the board.
 
-async function loadConfig() {
-  try {
-    const res = await fetch("/api/config");
-    config = await res.json();
-    document.querySelector(".header-title").textContent = config.title || "Timberborn Colony Control";
-    buildComponents();
-  } catch (err) {
-    console.error("Failed to load config:", err);
+const _placementQueue = [];
+let _placementRunning = false;
+
+function enqueueComponent(comp) {
+  _placementQueue.push(comp);
+  _drainQueue();
+}
+
+async function _drainQueue() {
+  if (_placementRunning) return;
+  _placementRunning = true;
+  while (_placementQueue.length > 0) {
+    const comp = _placementQueue.shift();
+    _placeComponent(comp);
+    // Yield to the browser so rendering can interleave
+    await new Promise(r => setTimeout(r, 0));
+  }
+  _placementRunning = false;
+}
+
+/**
+ * Validate and place a single component on the grid.
+ * Nudges position if it overlaps an already-placed component.
+ */
+function _placeComponent(comp) {
+  let x = comp.x ?? 0;
+  let y = comp.y ?? 0;
+  const w = comp.w ?? comp.minWidth ?? COMP_MIN_WIDTH;
+  const h = comp.h ?? comp.minHeight ?? COMP_MIN_HEIGHT;
+
+  // Simple overlap resolution: shift down until clear
+  for (const [, existing] of grid.components) {
+    if (_rectsOverlap(x, y, w, h, existing.x, existing.y, existing.w, existing.h)) {
+      y = existing.y + existing.h;
+    }
+  }
+
+  // Write adjusted position back if it changed
+  if (x !== (comp.x ?? 0) || y !== (comp.y ?? 0)) {
+    comp.x = x;
+    comp.y = y;
+    Store.saveLayout(comp.id, { x, y, w, h });
+  }
+
+  componentData.set(comp.id, comp);
+  createComponentElement(comp, x, y, w, h);
+}
+
+function _rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+  return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+}
+
+// --- Config Loading (from Store) ---
+
+function loadConfig() {
+  Store.migrateIfNeeded();
+
+  document.querySelector(".header-title").textContent = Store.getTitle();
+
+  // Load component IDs from root key, then enqueue each for async placement
+  const ids = Store.getComponentIds();
+  for (const id of ids) {
+    const comp = Store.readComponent(id);
+    if (comp) {
+      enqueueComponent(comp);
+    }
   }
 }
 
-// --- Build Components from Config ---
+// --- Build / Rebuild Components ---
+// Called when the in-memory component set changes (add/delete).
 
 function buildComponents() {
-  // Remove existing components that are no longer in config
-  const configIds = new Set((config.components || []).map(c => c.id));
+  const currentIds = new Set(Store.getComponentIds());
+
+  // Remove components no longer in store
   for (const [id] of grid.components) {
-    if (!configIds.has(id)) {
+    if (!currentIds.has(id)) {
       grid.removeComponent(id);
+      componentData.delete(id);
     }
   }
 
-  for (const comp of config.components || []) {
-    if (grid.getComponent(comp.id)) {
-      // Update existing component
-      updateComponentElement(comp);
+  // Add new components not yet on grid
+  for (const id of currentIds) {
+    if (!grid.getComponent(id)) {
+      const comp = Store.readComponent(id);
+      if (comp) enqueueComponent(comp);
     } else {
-      // Create new component
-      createComponentElement(comp);
+      // Update existing
+      const comp = Store.readComponent(id);
+      if (comp) {
+        componentData.set(comp.id, comp);
+        updateComponentElement(comp);
+      }
     }
   }
 }
 
-function createComponentElement(comp) {
+function createComponentElement(comp, x, y, w, h) {
   const el = document.createElement("tb-component");
   el.setAttribute("component-id", comp.id);
   el.setAttribute("name", comp.name || comp.id);
@@ -95,10 +169,12 @@ function createComponentElement(comp) {
   });
 
   const gridOpts = {
-    x: comp.x || 0,
-    y: comp.y || 0,
-    minWidth: comp.minWidth || 8,
-    minHeight: comp.minHeight || 6,
+    x,
+    y,
+    width: w,
+    minWidth: comp.minWidth || COMP_MIN_WIDTH,
+    minHeight: comp.minHeight || COMP_MIN_HEIGHT,
+    height: h,
   };
 
   // Surface component constraints
@@ -209,8 +285,8 @@ function createSurfaceElement(elem, index) {
 function applyDeviceState(devices) {
   deviceState = devices;
 
-  for (const comp of config.components || []) {
-    const gridComp = grid.getComponent(comp.id);
+  for (const [id, comp] of componentData) {
+    const gridComp = grid.getComponent(id);
     if (!gridComp) continue;
 
     const tbComp = gridComp.el.querySelector("tb-component") || gridComp.el;
@@ -391,35 +467,69 @@ function handleToggleViaCircuitry(tbComp, surfaceId, on) {
   }
 }
 
-// --- Config Save ---
+// --- Config Save (per-component via Store) ---
 
-async function saveConfig(cfg) {
-  if (cfg) config = cfg;
-  try {
-    await fetch("/api/config/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
-    });
-  } catch (err) {
-    console.error("Config save to server failed:", err);
+function saveConfig(cfg) {
+  if (cfg) {
+    // Full config object passed (from context menu add/delete).
+    // Sync title and all components to Store.
+    if (cfg.title) Store.setTitle(cfg.title);
+    for (const comp of cfg.components || []) {
+      // Merge current grid position into the component before saving
+      const gridComp = grid.getComponent(comp.id);
+      if (gridComp) {
+        comp.x = gridComp.x;
+        comp.y = gridComp.y;
+        comp.w = gridComp.w;
+        comp.h = gridComp.h;
+      }
+      Store.saveComponent(comp);
+      componentData.set(comp.id, comp);
+    }
+    // Remove components no longer in the config
+    const newIds = new Set((cfg.components || []).map(c => c.id));
+    for (const existingId of Store.getComponentIds()) {
+      if (!newIds.has(existingId)) {
+        Store.removeComponent(existingId);
+        componentData.delete(existingId);
+      }
+    }
   }
+}
+
+/** Return a config-shaped object for backwards compat with context menu. */
+function getConfig() {
+  return {
+    title: Store.getTitle(),
+    components: Store.loadAll(),
+  };
 }
 
 // --- Config Change Handler ---
 
 async function handleComponentConfigChange(detail) {
-  const comp = (config.components || []).find(c => c.id === detail.id);
-  if (comp) {
-    if (detail.property === "color") {
-      comp.color = detail.value;
-    } else if (detail.property === "circuitry") {
-      comp.circuitry = detail.value;
-    } else if (detail.property === "surface") {
-      comp.surface = detail.value;
-    }
-    await saveConfig();
+  const comp = componentData.get(detail.id) || Store.readComponent(detail.id);
+  if (!comp) return;
+
+  if (detail.property === "color") {
+    comp.color = detail.value;
+  } else if (detail.property === "circuitry") {
+    comp.circuitry = detail.value;
+  } else if (detail.property === "surface") {
+    comp.surface = detail.value;
   }
+
+  // Merge grid position
+  const gridComp = grid.getComponent(detail.id);
+  if (gridComp) {
+    comp.x = gridComp.x;
+    comp.y = gridComp.y;
+    comp.w = gridComp.w;
+    comp.h = gridComp.h;
+  }
+
+  Store.saveComponent(comp);
+  componentData.set(comp.id, comp);
 }
 
 // --- WebSocket ---
@@ -466,7 +576,7 @@ function connect() {
 
 // --- Context Menu ---
 initContextMenu({
-  getConfig: () => config,
+  getConfig,
   saveConfig,
   buildComponents,
   gridViewport,

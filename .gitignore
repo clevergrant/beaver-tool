@@ -1,4 +1,5 @@
 node_modules/
 .tb/
 .env
-.claude
+.claude/
+logs/

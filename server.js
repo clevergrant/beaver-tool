@@ -47,17 +47,6 @@ function getStatus() {
   };
 }
 
-// --- Config (in-memory only) ---
-let dashboardConfig = { title: "Timberborn Colony Control", components: [] };
-
-function getConfig() {
-  return dashboardConfig;
-}
-
-function setConfig(config) {
-  dashboardConfig = config;
-}
-
 // --- Game API ---
 setStateGameApi(GAME_API);
 onGameStatus((connected) => {
@@ -70,9 +59,7 @@ const server = http.createServer(
     gameApi: GAME_API,
     port: PORT,
     staticDir: path.join(__dirname, "public"),
-    getConfig,
     getStatus,
-    setConfig,
     logBuffer: log.buffer,
   })
 );
@@ -106,7 +93,7 @@ server.listen(PORT, () => {
   startPolling();
   log.server(`Listening on port ${c.bold}${PORT}${c.reset}`);
   log.server(`Game API: ${c.dim}${GAME_API}${c.reset}`);
-  if (process.env.DISCORD_CHANNEL_ID) {
-    log.discord(`Channel: ${c.dim}${process.env.DISCORD_CHANNEL_ID}${c.reset}`);
+  if (process.env.DISCORD_BOT_TOKEN) {
+    log.discord(`Bot accepting DMs`);
   }
 });

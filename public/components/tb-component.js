@@ -370,6 +370,53 @@ class TbComponent extends HTMLElement {
     const name = this.getAttribute("name") || "";
 
     this._surfaceView.style.background = color;
+
+    // Set highlight color custom property for CSS
+    const hl = TbComponent.computeHighlight(color);
+    this.style.setProperty("--comp-hl", hl);
+  }
+
+  /**
+   * Compute a bright complementary highlight color from bgColor.
+   * Only the hue changes (180° shift); saturation and lightness stay fixed.
+   * For near-neutral backgrounds, falls back to cyan.
+   */
+  static computeHighlight(hexColor) {
+    let hex = (hexColor || "#d4cdb8").replace("#", "");
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    const r = parseInt(hex.substr(0, 2), 16) / 255;
+    const g = parseInt(hex.substr(2, 2), 16) / 255;
+    const b = parseInt(hex.substr(4, 2), 16) / 255;
+
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let h = 0, s = 0;
+    if (mx !== mn) {
+      const d = mx - mn;
+      const l = (mx + mn) / 2;
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (mx === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+
+    // Complementary hue; cyan for neutrals
+    const nh = s < 0.1 ? 0.5 : (h + 0.5) % 1;
+
+    // Fixed bright saturation and lightness
+    const ns = 0.85;
+    const nl = 0.65;
+
+    // HSL → RGB
+    const q = nl < 0.5 ? nl * (1 + ns) : nl + ns - nl * ns;
+    const p = 2 * nl - q;
+    const f = (t) => {
+      t = ((t % 1) + 1) % 1;
+      return t < 1/6 ? p+(q-p)*6*t : t < 0.5 ? q : t < 2/3 ? p+(q-p)*(2/3-t)*6 : p;
+    };
+    const hr = f(nh + 1/3), hg = f(nh), hb = f(nh - 1/3);
+
+    const x = (v) => Math.round(v * 255).toString(16).padStart(2, "0");
+    return `#${x(hr)}${x(hg)}${x(hb)}`;
   }
 
   /** Open the editor overlay — centers the box on screen at its current size */
@@ -384,6 +431,7 @@ class TbComponent extends HTMLElement {
 
     // Compute darker background for circuitry
     const darkerColor = this._darkenColor(color, 0.4);
+    const highlightColor = TbComponent.computeHighlight(color);
 
     // Create overlay
     const overlay = document.createElement("div");
@@ -495,10 +543,10 @@ class TbComponent extends HTMLElement {
         return { ...et, w: sc.minW, h: sc.minH };
       });
 
-      // Calculate grid position from click
+      // Calculate grid position from click (clamped to 1-cell margin)
       const surfaceRect = editorSurface.getBoundingClientRect();
-      const gridX = Math.floor((e.clientX - surfaceRect.left) / CELL_SIZE);
-      const gridY = Math.floor((e.clientY - surfaceRect.top) / CELL_SIZE);
+      const gridX = Math.max(1, Math.floor((e.clientX - surfaceRect.left) / CELL_SIZE));
+      const gridY = Math.max(1, Math.floor((e.clientY - surfaceRect.top) / CELL_SIZE));
 
       surfaceMenu = document.createElement("div");
       surfaceMenu.className = "ctx-menu";
@@ -602,6 +650,7 @@ class TbComponent extends HTMLElement {
     frame.style.transition = "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
 
     document.body.appendChild(overlay);
+    overlay.style.setProperty("--comp-hl", highlightColor);
     overlay.classList.add("open");
 
     // Animate to center of screen at current size
@@ -684,6 +733,10 @@ class TbComponent extends HTMLElement {
         const circuitry = overlay.querySelector(".editor-circuitry");
         circuitry.style.background = this._darkenColor(newColor, 0.4);
         circuitry.style.borderColor = newColor;
+
+        // Update highlight color for editor UI
+        const newHighlight = TbComponent.computeHighlight(newColor);
+        overlay.style.setProperty("--comp-hl", newHighlight);
 
         // Dispatch event for config save
         this.dispatchEvent(new CustomEvent("component-config-change", {
@@ -1011,8 +1064,9 @@ class TbComponent extends HTMLElement {
     const onMove = (e) => {
       const dx = e.clientX - startMouseX;
       const dy = e.clientY - startMouseY;
-      const newX = Math.max(0, Math.min(maxCols - item.w, startX + Math.round(dx / CELL_SIZE)));
-      const newY = Math.max(0, Math.min(maxRows - item.h, startY + Math.round(dy / CELL_SIZE)));
+      // Enforce 1-cell margin around the edges
+      const newX = Math.max(1, Math.min(maxCols - 1 - item.w, startX + Math.round(dx / CELL_SIZE)));
+      const newY = Math.max(1, Math.min(maxRows - 1 - item.h, startY + Math.round(dy / CELL_SIZE)));
 
       wrapper.style.left = newX * CELL_SIZE + "px";
       wrapper.style.top = newY * CELL_SIZE + "px";
@@ -1060,11 +1114,11 @@ class TbComponent extends HTMLElement {
       let newW = startW;
       let newH = startH;
       if (canResizeH) {
-        newW = Math.max(minW, Math.min(maxCols - item.x, startW + Math.round(dx / CELL_SIZE)));
+        newW = Math.max(minW, Math.min(maxCols - 1 - item.x, startW + Math.round(dx / CELL_SIZE)));
         if (maxW !== null) newW = Math.min(newW, maxW);
       }
       if (canResizeV) {
-        newH = Math.max(minH, Math.min(maxRows - item.y, startH + Math.round(dy / CELL_SIZE)));
+        newH = Math.max(minH, Math.min(maxRows - 1 - item.y, startH + Math.round(dy / CELL_SIZE)));
         if (maxH !== null) newH = Math.min(newH, maxH);
       }
 
@@ -1103,7 +1157,8 @@ class TbComponent extends HTMLElement {
   _isSurfaceAreaFree(gridX, gridY, w, h, editorItems, excludeId) {
     const maxCols = Math.floor(this._surfaceView.clientWidth / CELL_SIZE);
     const maxRows = Math.floor(this._surfaceView.clientHeight / CELL_SIZE);
-    if (gridX < 0 || gridY < 0 || gridX + w > maxCols || gridY + h > maxRows) return false;
+    // Enforce 1-cell margin around the edges (matches the dot-grid inset)
+    if (gridX < 1 || gridY < 1 || gridX + w > maxCols - 1 || gridY + h > maxRows - 1) return false;
 
     for (const [id, item] of editorItems) {
       if (id === excludeId) continue;

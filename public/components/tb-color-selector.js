@@ -18,14 +18,18 @@ class TbColorSelector extends HTMLElement {
     this._expanded = false;
 
     this._presets = [
-      "#d4cdb8", // tan (default)
-      "#b8c4d4", // steel blue
-      "#c8d4b8", // sage green
-      "#d4b8b8", // dusty rose
-      "#d4d0b8", // warm cream
-      "#b8b8d4", // lavender
-      "#d4c4b0", // sand
-      "#a8b8a8", // muted green
+      "#ff4c2e", // red
+      "#fe792e", // orange
+      "#fdd42c", // yellow
+      "#bad015", // lime
+      "#64b53c", // green
+      "#89d6e8", // blue
+      "#3f5d93", // indigo
+      "#ff63a8", // violet
+      "#151f21", // black
+      "#5b3314", // brown
+      "#f2f1dd", // beige
+      "#feffef", // white
     ];
 
     this.shadowRoot.innerHTML = `
@@ -70,7 +74,7 @@ class TbColorSelector extends HTMLElement {
           gap: 6px;
           flex-wrap: wrap;
           justify-content: center;
-          width: 120px;
+          width: 148px;
           padding: 8px;
           background: rgba(30, 30, 28, 0.95);
           border: 1px solid #5a5a54;
@@ -107,9 +111,12 @@ class TbColorSelector extends HTMLElement {
         }
 
         .custom-wrap {
-          width: 22px;
-          height: 22px;
-          flex-shrink: 0;
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          border-top: 1px solid #3a3a36;
+          padding-top: 6px;
+          margin-top: 2px;
         }
 
         .custom-wrap input[type="color"] {
