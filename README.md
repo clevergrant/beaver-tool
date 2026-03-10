@@ -46,7 +46,7 @@ cp .env.example .env
 | Variable | Default | Description |
 |---|---|---|
 | `TB_PORT` | `3000` | Port for the web interface |
-| `TB_GAME_API` | `http://localhost:8080/api` | Timberborn's HTTP API URL |
+| `TB_GAME_API` | `http://localhost:3000/api` | Timberborn's HTTP API URL |
 | `DISCORD_BOT_TOKEN` | *(empty)* | Optional Discord bot token for DM control |
 
 ### Run
