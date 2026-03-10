@@ -93,7 +93,9 @@ class TbToggle extends TbSurfaceComponent {
 
         .switch-handle.on {
           top: 4px;
-          background: linear-gradient(180deg, #e74c3c, #c0392b);
+          background: linear-gradient(180deg,
+            var(--comp-hl, #ffaa20),
+            color-mix(in srgb, var(--comp-hl, #ffaa20) 70%, black));
         }
 
         :host([orientation="horizontal"]) .switch-handle.on {
@@ -101,7 +103,9 @@ class TbToggle extends TbSurfaceComponent {
           right: 4px;
           left: auto;
           transform: translateY(-50%);
-          background: linear-gradient(90deg, #e74c3c, #c0392b);
+          background: linear-gradient(90deg,
+            var(--comp-hl, #ffaa20),
+            color-mix(in srgb, var(--comp-hl, #ffaa20) 70%, black));
         }
 
         .switch-handle.off {
@@ -118,21 +122,33 @@ class TbToggle extends TbSurfaceComponent {
           background: linear-gradient(90deg, #8a8a7a, #6a6a60);
         }
 
-        /* ── Rounded / Material Design style ── */
+        /* ── Rounded style ── */
 
         :host([switch-style="rounded"]) .switch-housing {
-          width: 24px;
-          height: 44px;
-          border-radius: 12px;
+          width: 28px;
+          height: 50px;
+          border-radius: 14px;
           border: 2px solid #4a4a44;
-          background: #3a3a36;
-          box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-          transition: background 0.2s ease, border-color 0.2s ease;
+          background: #2a2a26;
+          box-shadow:
+            inset 0 2px 6px rgba(0,0,0,0.6),
+            0 1px 0 rgba(255,255,255,0.05);
+          transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         :host([switch-style="rounded"][orientation="horizontal"]) .switch-housing {
-          width: 44px;
-          height: 24px;
+          width: 50px;
+          height: 28px;
+        }
+
+        /* Track lights up when on */
+        :host([switch-style="rounded"]) .switch-housing.on {
+          background: color-mix(in srgb, var(--comp-hl, #ffaa20) 12%, #2a2a26);
+          border-color: color-mix(in srgb, var(--comp-hl, #ffaa20) 40%, #4a4a44);
+          box-shadow:
+            inset 0 2px 6px rgba(0,0,0,0.4),
+            0 0 8px color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, transparent),
+            0 1px 0 rgba(255,255,255,0.05);
         }
 
         :host([switch-style="rounded"]) .switch-plate {
@@ -140,12 +156,13 @@ class TbToggle extends TbSurfaceComponent {
         }
 
         :host([switch-style="rounded"]) .switch-handle {
-          width: 18px;
-          height: 18px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
           left: auto;
           transform: none;
           transition: all 0.2s ease;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
         /* Rounded – vertical (default) */
@@ -154,7 +171,7 @@ class TbToggle extends TbSurfaceComponent {
           bottom: 3px;
           left: 50%;
           transform: translateX(-50%);
-          background: #8a8a7a;
+          background: radial-gradient(circle at 40% 35%, #9a9a8a, #6a6a60);
         }
 
         :host([switch-style="rounded"]) .switch-handle.on {
@@ -163,7 +180,13 @@ class TbToggle extends TbSurfaceComponent {
           left: 50%;
           right: auto;
           transform: translateX(-50%);
-          background: #e74c3c;
+          background: radial-gradient(circle at 40% 35%,
+            color-mix(in srgb, var(--comp-hl, #ffaa20) 80%, white),
+            var(--comp-hl, #ffaa20));
+          box-shadow:
+            0 2px 4px rgba(0,0,0,0.4),
+            0 0 10px color-mix(in srgb, var(--comp-hl, #ffaa20) 50%, transparent),
+            0 0 20px color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, transparent);
         }
 
         /* Rounded – horizontal overrides */
@@ -182,46 +205,52 @@ class TbToggle extends TbSurfaceComponent {
           transform: translateY(-50%);
         }
 
-        /* ── Small size variants (1x2) ── */
+        /* ── Small size variants (1×2 = 20×40px cell) ── */
 
         /* Small squared – vertical */
         :host([size="small"]) .switch-housing {
-          width: 18px;
-          height: 30px;
+          width: 16px;
+          height: 28px;
           border-radius: 3px;
         }
 
         :host([size="small"]) .switch-plate {
-          width: 3px;
-          height: 18px;
+          width: 2px;
+          height: 16px;
         }
 
         :host([size="small"]) .switch-handle {
-          width: 14px;
-          height: 9px;
+          width: 12px;
+          height: 8px;
           border-radius: 2px;
         }
 
+        :host([size="small"]) .switch-handle.on { top: 3px; }
+        :host([size="small"]) .switch-handle.off { bottom: 3px; }
+
         /* Small squared – horizontal */
         :host([size="small"][orientation="horizontal"]) .switch-housing {
-          width: 30px;
-          height: 18px;
+          width: 28px;
+          height: 16px;
         }
 
         :host([size="small"][orientation="horizontal"]) .switch-plate {
-          width: 18px;
-          height: 3px;
+          width: 16px;
+          height: 2px;
         }
 
         :host([size="small"][orientation="horizontal"]) .switch-handle {
-          width: 9px;
-          height: 14px;
+          width: 8px;
+          height: 12px;
         }
+
+        :host([size="small"][orientation="horizontal"]) .switch-handle.on { right: 3px; }
+        :host([size="small"][orientation="horizontal"]) .switch-handle.off { left: 3px; }
 
         /* Small rounded – vertical */
         :host([size="small"][switch-style="rounded"]) .switch-housing {
           width: 16px;
-          height: 28px;
+          height: 30px;
           border-radius: 8px;
         }
 
@@ -233,7 +262,7 @@ class TbToggle extends TbSurfaceComponent {
 
         /* Small rounded – horizontal */
         :host([size="small"][switch-style="rounded"][orientation="horizontal"]) .switch-housing {
-          width: 28px;
+          width: 30px;
           height: 16px;
           border-radius: 8px;
         }
@@ -244,11 +273,10 @@ class TbToggle extends TbSurfaceComponent {
           border-radius: 50%;
         }
 
-        /* ── Large size variants (3x3) ── */
+        /* ── Large squared (3×3 = 60×60px cell) ── */
 
-        /* Large squared – vertical: 2x1 housing (wider) */
         :host([size="large"]) .switch-housing {
-          width: 56px;
+          width: 52px;
           height: 48px;
         }
 
@@ -258,14 +286,13 @@ class TbToggle extends TbSurfaceComponent {
         }
 
         :host([size="large"]) .switch-handle {
-          width: 44px;
+          width: 40px;
           height: 14px;
         }
 
-        /* Large squared – horizontal: 1x2 housing (taller) */
         :host([size="large"][orientation="horizontal"]) .switch-housing {
           width: 48px;
-          height: 56px;
+          height: 52px;
         }
 
         :host([size="large"][orientation="horizontal"]) .switch-plate {
@@ -275,33 +302,112 @@ class TbToggle extends TbSurfaceComponent {
 
         :host([size="large"][orientation="horizontal"]) .switch-handle {
           width: 14px;
-          height: 44px;
+          height: 40px;
         }
 
-        /* Large rounded – vertical */
-        :host([size="large"][switch-style="rounded"]) .switch-housing {
-          width: 48px;
-          height: 44px;
-          border-radius: 22px;
-        }
+        /* ── Large rounded: Illuminated pushbutton ── */
 
+        :host([size="large"][switch-style="rounded"]) .switch-housing,
+        :host([size="large"][switch-style="rounded"]) .switch-plate,
         :host([size="large"][switch-style="rounded"]) .switch-handle {
-          width: 36px;
-          height: 18px;
-          border-radius: 9px;
+          display: none;
         }
 
-        /* Large rounded – horizontal */
-        :host([size="large"][switch-style="rounded"][orientation="horizontal"]) .switch-housing {
-          width: 44px;
-          height: 48px;
-          border-radius: 22px;
+        :host([size="large"][switch-style="rounded"]) .pushbutton {
+          display: flex;
         }
 
-        :host([size="large"][switch-style="rounded"][orientation="horizontal"]) .switch-handle {
-          width: 18px;
-          height: 36px;
-          border-radius: 9px;
+        .pushbutton {
+          display: none;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          width: 50px;
+          height: 50px;
+        }
+
+        /* Outer bezel ring */
+        .pb-bezel {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background: conic-gradient(from 135deg, #6a6458, #9a9488, #6a6458, #4a4840, #6a6458);
+          box-shadow:
+            0 2px 6px rgba(0,0,0,0.5),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        /* Indicator ring channel */
+        .pb-ring {
+          position: absolute;
+          inset: 4px;
+          border-radius: 50%;
+          background: #1a1a18;
+          transition: all 0.3s ease;
+        }
+
+        .pb-ring.on {
+          background: #1a1a18;
+          box-shadow:
+            inset 0 0 4px color-mix(in srgb, var(--comp-hl, #ffaa20) 60%, transparent),
+            0 0 8px color-mix(in srgb, var(--comp-hl, #ffaa20) 30%, transparent),
+            0 0 16px color-mix(in srgb, var(--comp-hl, #ffaa20) 10%, transparent);
+        }
+
+        .pb-ring.on::after {
+          content: '';
+          position: absolute;
+          inset: 2px;
+          border-radius: 50%;
+          border: 2px solid color-mix(in srgb, var(--comp-hl, #ffaa20) 70%, transparent);
+          box-shadow: 0 0 4px color-mix(in srgb, var(--comp-hl, #ffaa20) 40%, transparent);
+        }
+
+        /* Button face */
+        .pb-face {
+          position: absolute;
+          inset: 9px;
+          border-radius: 50%;
+          transition: all 0.15s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .pb-face.off {
+          background: radial-gradient(circle at 40% 35%, #5a5a52, #3a3a36);
+          box-shadow:
+            0 3px 4px rgba(0,0,0,0.5),
+            inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .pb-face.on {
+          background: radial-gradient(circle at 40% 35%,
+            color-mix(in srgb, var(--comp-hl, #ffaa20) 80%, white),
+            var(--comp-hl, #ffaa20));
+          box-shadow:
+            0 1px 2px rgba(0,0,0,0.4),
+            inset 0 2px 3px rgba(0,0,0,0.15),
+            0 0 12px color-mix(in srgb, var(--comp-hl, #ffaa20) 40%, transparent);
+          transform: translateY(1px);
+        }
+
+        /* Pip mark on button face */
+        .pb-pip {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          transition: all 0.2s ease;
+        }
+
+        .pb-face.off .pb-pip {
+          background: #3a3a36;
+          box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .pb-face.on .pb-pip {
+          background: rgba(255,255,255,0.6);
+          box-shadow: 0 0 4px rgba(255,255,255,0.3);
         }
 
         .switch-label {
@@ -312,23 +418,24 @@ class TbToggle extends TbSurfaceComponent {
           text-transform: uppercase;
         }
 
-        :host(:hover) .switch-housing {
-          border-color: #8a8a7a;
-        }
-
-        :host([switch-style="rounded"]:hover) .switch-housing {
-          border-color: #6a6a60;
-        }
       </style>
 
       <div class="switch-housing">
         <div class="switch-plate"></div>
         <div class="switch-handle"></div>
       </div>
+      <div class="pushbutton">
+        <div class="pb-bezel"></div>
+        <div class="pb-ring"></div>
+        <div class="pb-face"><div class="pb-pip"></div></div>
+      </div>
       <span class="switch-label"></span>
     `;
 
+    this._housing = this.shadowRoot.querySelector(".switch-housing");
     this._handle = this.shadowRoot.querySelector(".switch-handle");
+    this._pbRing = this.shadowRoot.querySelector(".pb-ring");
+    this._pbFace = this.shadowRoot.querySelector(".pb-face");
     this._labelEl = this.shadowRoot.querySelector(".switch-label");
 
     this.addEventListener("click", () => {
@@ -356,7 +463,11 @@ class TbToggle extends TbSurfaceComponent {
     const isOn = this.hasAttribute("on");
     const label = this.getAttribute("label") || "";
 
-    this._handle.className = "switch-handle " + (isOn ? "on" : "off");
+    const state = isOn ? "on" : "off";
+    this._housing.className = "switch-housing " + state;
+    this._handle.className = "switch-handle " + state;
+    this._pbRing.className = "pb-ring " + state;
+    this._pbFace.className = "pb-face " + state;
     this._labelEl.textContent = label;
     this._labelEl.style.display = label ? "" : "none";
   }

@@ -2,9 +2,12 @@
  * <tb-component> — Main component box for the dashboard grid.
  *
  * Renders as a colored box on the grid showing the surface display.
- * Click to open in full-screen editor mode with surface/circuitry toggle.
- * The open animation expands from the box's grid position to fill the screen.
+ * Right-click to open in full-screen editor mode with surface/circuitry toggle.
+ * The editor expands from the box's grid position to fill the screen.
  * Switching modes: surface slides up-right revealing circuitry underneath.
+ *
+ * Surface elements are created once and stay in the shadow DOM at all times —
+ * they are never reparented or destroyed during the editor lifecycle.
  *
  * Attributes:
  *   name        - Display name
@@ -57,12 +60,28 @@ class TbComponent extends HTMLElement {
           height: 100%;
         }
 
+        /* ── Editor Mode ── */
+        :host(.editing) {
+          border-radius: 8px;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+        }
+
         .surface-view {
           width: 100%;
           height: 100%;
           position: relative;
           border-radius: 6px;
           overflow: hidden;
+        }
+
+        :host(.editing) .surface-view {
+          border-radius: 8px;
+          z-index: 2;
+          transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        :host(.editing.circuitry-active) .surface-view {
+          transform: translate(100%, -100%);
         }
 
         .surface-screws-bottom {
@@ -79,16 +98,252 @@ class TbComponent extends HTMLElement {
           width: 100%;
           height: 100%;
         }
+
+        /* ── Editor Backdrop ── */
+        .editor-backdrop {
+          display: none;
+        }
+
+        :host(.editing) .editor-backdrop {
+          display: block;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          z-index: -1;
+        }
+
+        /* ── Editor Handles ── */
+        .editor-handles {
+          display: none;
+        }
+
+        :host(.editing) .editor-handles {
+          display: block;
+          position: absolute;
+          inset: 0;
+          z-index: 10;
+        }
+
+        .surface-handle {
+          position: absolute;
+          cursor: grab;
+          border-radius: 3px;
+          outline: 1px solid transparent;
+          outline-offset: -1px;
+          transition: outline-color 0.15s, box-shadow 0.15s;
+          z-index: 2;
+        }
+
+        .surface-handle:hover {
+          outline-color: color-mix(in srgb, var(--comp-hl, #ffaa20) 50%, transparent);
+          box-shadow: 0 0 8px color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, transparent);
+        }
+
+        .surface-handle:active {
+          cursor: grabbing;
+        }
+
+        .surface-handle.no-resize {
+          cursor: grab;
+        }
+
+        .surface-resize-handle {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: 12px;
+          height: 12px;
+          background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--comp-hl, #ffaa20) 70%, transparent) 50%);
+          border-radius: 0 0 3px 0;
+          cursor: nwse-resize;
+          opacity: 0;
+          transition: opacity 0.15s;
+          z-index: 3;
+        }
+
+        .surface-handle:hover .surface-resize-handle,
+        .surface-handle.resizing .surface-resize-handle {
+          opacity: 1;
+        }
+
+        /* ── Ghost Preview ── */
+        .editor-ghost {
+          position: absolute;
+          border-radius: 4px;
+          border: 2px dashed color-mix(in srgb, var(--comp-hl, #ffaa20) 60%, transparent);
+          background: color-mix(in srgb, var(--comp-hl, #ffaa20) 8%, transparent);
+          pointer-events: none;
+          z-index: 10;
+          transition: opacity 0.15s;
+          display: none;
+        }
+
+        .editor-ghost.blocked {
+          border-color: rgba(255,68,68,0.6);
+          background: rgba(255,68,68,0.08);
+        }
+
+        /* ── Properties Panel ── */
+        .surface-props-panel {
+          position: absolute;
+          background: #2a2a26;
+          border: 1px solid #5a5a52;
+          border-radius: 4px;
+          padding: 6px 8px;
+          z-index: 20;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          min-width: 180px;
+        }
+
+        .surface-props-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 3px 0;
+        }
+
+        .surface-props-check {
+          accent-color: var(--comp-hl, #ffaa20);
+          width: 14px;
+          height: 14px;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+
+        .surface-props-label {
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.6rem;
+          color: #8a8a7a;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          flex-shrink: 0;
+          min-width: 32px;
+        }
+
+        .surface-props-input {
+          flex: 1;
+          background: #1a1a18;
+          border: 1px solid #4a4a42;
+          border-radius: 3px;
+          color: #e0ddd0;
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.6rem;
+          padding: 2px 5px;
+          outline: none;
+          min-width: 0;
+        }
+
+        .surface-props-input:focus {
+          border-color: var(--comp-hl, #ffaa20);
+        }
+
+        .surface-props-input:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
+        /* ── Grid Dots (editing mode only) ── */
+        :host(.editing) .surface-elements::before {
+          content: '';
+          position: absolute;
+          inset: var(--cell-size);
+          background-image: radial-gradient(circle, rgba(0,0,0,0.15) 2px, transparent 2px);
+          background-size: var(--cell-size) var(--cell-size);
+          pointer-events: none;
+          z-index: 5;
+        }
+
+        /* ── Circuitry View ── */
+        .circuitry-view {
+          display: none;
+        }
+
+        :host(.editing) .circuitry-view {
+          display: block;
+          position: absolute;
+          inset: 0;
+          border-radius: 8px;
+          overflow: hidden;
+          z-index: 1;
+        }
+
+        /* ── Editor Toolbar ── */
+        .editor-toolbar {
+          display: none;
+        }
+
+        :host(.editing) .editor-toolbar {
+          display: flex;
+          position: absolute;
+          top: -40px;
+          right: 0;
+          z-index: 10;
+          gap: 4px;
+        }
+
+        .editor-toolbar button {
+          background: #2a2a28;
+          border: none;
+          border-radius: 6px;
+          color: #aaa;
+          padding: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+
+        .editor-toolbar button:hover {
+          background: #3a3a36;
+          color: #fff;
+          box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+          transform: translateY(-1px);
+        }
+
+        .editor-toolbar button.active {
+          background: color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, #2a2a28);
+          color: var(--comp-hl, #ffaa20);
+          box-shadow: 0 2px 6px color-mix(in srgb, var(--comp-hl, #ffaa20) 25%, transparent);
+        }
       </style>
+
+      <div class="editor-backdrop"></div>
+
+      <div class="circuitry-view">
+        <tb-node-editor></tb-node-editor>
+      </div>
 
       <div class="surface-view" part="surface">
         <div class="surface-elements"></div>
         <div class="surface-screws-bottom"></div>
+        <div class="editor-handles"></div>
+        <div class="editor-ghost"></div>
+      </div>
+
+      <div class="editor-toolbar">
+        <button class="mode-surface active" title="Surface Display">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="mode-circuitry" title="Node Graph">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h10M7 18h10M5 8v8M19 8v8"/></svg>
+        </button>
+        <button class="mode-close" title="Close Editor">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     `;
 
     this._surfaceView = this.shadowRoot.querySelector(".surface-view");
     this._surfaceElementsContainer = this.shadowRoot.querySelector(".surface-elements");
+    this._editorHandles = this.shadowRoot.querySelector(".editor-handles");
+    this._editorGhost = this.shadowRoot.querySelector(".editor-ghost");
+    this._editorBackdrop = this.shadowRoot.querySelector(".editor-backdrop");
+    this._nodeEditor = this.shadowRoot.querySelector("tb-node-editor");
+    this._circuitryView = this.shadowRoot.querySelector(".circuitry-view");
 
     // Editor is now opened via right-click context menu (see context-menu.js)
   }
@@ -198,9 +453,16 @@ class TbComponent extends HTMLElement {
 
   /** Generate a unique surface-id for a new element */
   _generateSurfaceId(tagName) {
-    this._surfaceIdCounter++;
-    const type = tagName.replace("tb-", "");
-    return `${type}-${Date.now()}-${this._surfaceIdCounter}`;
+    const prefix = tagName.replace("tb-", "");
+    let sid;
+    do {
+      this._surfaceIdCounter++;
+      sid = `${prefix}-${this._surfaceIdCounter}`;
+    } while (
+      this._surfaceGrid &&
+      this._surfaceGrid.getComponent(sid)
+    );
+    return sid;
   }
 
   /**
@@ -238,44 +500,24 @@ class TbComponent extends HTMLElement {
       }
     }
 
-    const nodeConfig = {
-      surfaceId: sid,
-      ports: ports,
-      surfaceManaged: true,
-      label: surfaceComponent.getAttribute("label") || sid,
-    };
-
-    // Set default toggle config so constraints are applied correctly
-    if (type === "surface-toggle") {
-      nodeConfig.size = "medium";
-      nodeConfig.orientation = "vertical";
-      nodeConfig.style = "squared";
-    }
-
     const nodeData = {
       id: nodeId,
       type: type,
       x: spawnX,
       y: spawnY,
-      config: nodeConfig,
+      config: {
+        surfaceId: sid,
+        ports: ports,
+        surfaceManaged: true,
+        label: surfaceComponent.getAttribute("label") || sid,
+      },
     };
 
     this._circuitryData.nodes.push(nodeData);
 
-    // Apply toggle constraints immediately after registration
-    if (type === "surface-toggle" && this._surfaceGrid) {
-      const { minW, minH } = TbComponent._toggleConstraints(
-        nodeConfig.orientation, nodeConfig.size
-      );
-      this._surfaceGrid.updateConstraints(sid, { minW, minH });
-    }
-
-    // If the editor overlay is open, also add to the live node editor
-    if (this._overlay) {
-      const nodeEditor = this._overlay.querySelector("tb-node-editor");
-      if (nodeEditor) {
-        nodeEditor.addExternalNode(nodeData);
-      }
+    // If the editor is open, also add to the live node editor
+    if (this._open && this._nodeEditor) {
+      this._nodeEditor.addExternalNode(nodeData);
     }
 
     this._emitCircuitryChange();
@@ -315,11 +557,7 @@ class TbComponent extends HTMLElement {
     for (const node of nodes) {
       if (node.type !== "surface-label" || !node.config?.surfaceManaged) continue;
       const sid = node.config.surfaceId;
-      let surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
-      // Element may be in the overlay while the editor is open
-      if (!surfaceEl && this._overlay) {
-        surfaceEl = this._overlay.querySelector(`[surface-id="${sid}"]`);
-      }
+      const surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
       if (!surfaceEl) continue;
 
       // Sync override toggle
@@ -356,10 +594,7 @@ class TbComponent extends HTMLElement {
     for (const node of nodes) {
       if (node.type !== "surface-toggle" || !node.config?.surfaceManaged) continue;
       const sid = node.config.surfaceId;
-      let surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
-      if (!surfaceEl && this._overlay) {
-        surfaceEl = this._overlay.querySelector(`[surface-id="${sid}"]`);
-      }
+      const surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
       if (!surfaceEl) continue;
 
       const orientation = node.config.orientation || "vertical";
@@ -369,17 +604,34 @@ class TbComponent extends HTMLElement {
         surfaceEl.removeAttribute("orientation");
       }
 
-      const size = node.config.size || "medium";
-      if (size !== "medium") {
-        surfaceEl.setAttribute("size", size);
-      } else {
-        surfaceEl.removeAttribute("size");
-      }
+      const size = node.config.size || "small";
+      surfaceEl.setAttribute("size", size);
 
-      // Update grid constraints based on orientation and size
+      // Update grid constraints and resize to fit the new shape
       if (this._surfaceGrid) {
-        const { minW, minH } = TbComponent._toggleConstraints(orientation, size);
-        this._surfaceGrid.updateConstraints(sid, { minW, minH });
+        const c = TbComponent._toggleConstraints(orientation, size);
+        this._surfaceGrid.updateConstraints(sid, c);
+        // Force the element to match at least the new minimums
+        // (updateConstraints grows, but orientation swap may need both axes)
+        const comp = this._surfaceGrid.getComponent(sid);
+        if (comp) {
+          // Resize to match the new constraints exactly — both grow and shrink.
+          // Toggle size presets define the intended allocation, so clamp to it.
+          if (comp.w !== c.minW || comp.h !== c.minH) {
+            this._surfaceGrid.updateComponent(sid, { w: c.minW, h: c.minH });
+          }
+        }
+        // Sync editor handle if editor is open
+        if (this._editorItems) {
+          const item = this._editorItems.get(sid);
+          const comp2 = this._surfaceGrid.getComponent(sid);
+          if (item && comp2) {
+            item.w = comp2.w;
+            item.h = comp2.h;
+            item.el.style.width = comp2.w * CELL_SIZE + "px";
+            item.el.style.height = comp2.h * CELL_SIZE + "px";
+          }
+        }
       }
 
       const switchStyle = node.config.style || "squared";
@@ -491,7 +743,7 @@ class TbComponent extends HTMLElement {
     return `#${x(hr)}${x(hg)}${x(hb)}`;
   }
 
-  /** Open the editor overlay — centers the box on screen at its current size */
+  /** Open the editor — expands from the box's grid position to center of screen */
   openEditor() { return this._openEditor(); }
   _openEditor() {
     if (this._open || this._animating) return;
@@ -500,39 +752,63 @@ class TbComponent extends HTMLElement {
     const rect = this.getBoundingClientRect();
     const color = this.getAttribute("color") || "#d4cdb8";
     const compId = this.getAttribute("component-id") || "";
-
-    // Compute darker background for circuitry
     const darkerColor = this._darkenColor(color, 0.4);
     const highlightColor = TbComponent.computeHighlight(color);
 
-    // Create overlay
-    const overlay = document.createElement("div");
-    overlay.className = "editor-overlay";
-    overlay.innerHTML = `
-      <div class="editor-backdrop"></div>
-      <div class="editor-frame">
-        <div class="editor-modes">
-          <div class="editor-circuitry" style="background: ${darkerColor}; border: 3px solid ${color};">
-            <tb-node-editor></tb-node-editor>
-          </div>
-          <div class="editor-surface" style="background: ${color};">
-            <div class="editor-surface-content"></div>
-          </div>
-        </div>
+    // Set circuitry view colors
+    this._circuitryView.style.background = darkerColor;
+    this._circuitryView.style.border = `3px solid ${color}`;
 
-        <div class="editor-toolbar">
-          <button class="mode-surface active" title="Surface Display">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          </button>
-          <button class="mode-circuitry" title="Node Graph">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h10M7 18h10M5 8v8M19 8v8"/></svg>
-          </button>
-          <button class="mode-close" title="Close Editor">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-    `;
+    // Set CELL_SIZE CSS variable for grid dots
+    this.style.setProperty("--cell-size", CELL_SIZE + "px");
+
+    // Save original grid-relative inline styles for restoration on close
+    this._savedGridStyles = {
+      position: this.style.position,
+      left: this.style.left,
+      top: this.style.top,
+      width: this.style.width,
+      height: this.style.height,
+      zIndex: this.style.zIndex,
+      overflow: this.style.overflow,
+      transition: this.style.transition,
+    };
+
+    // Switch to fixed positioning at the box's current viewport position
+    // Override overflow:hidden and z-index:1 from .component-box
+    this.style.position = "fixed";
+    this.style.left = rect.left + "px";
+    this.style.top = rect.top + "px";
+    this.style.width = rect.width + "px";
+    this.style.height = rect.height + "px";
+    this.style.overflow = "visible";
+    this.style.zIndex = "1000";
+
+    // Save viewport rect for close animation
+    this._gridRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+
+    // Force the browser to commit the initial position before adding the transition
+    this.getBoundingClientRect();
+
+    // Now apply the transition and editing class
+    const ease = "0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+    this.style.transition = `left ${ease}, top ${ease}, width ${ease}, height ${ease}`;
+    this.classList.add("editing");
+
+    // Load circuitry data into node editor
+    if (this._nodeEditor && this._circuitryData) {
+      this._nodeEditor.loadData(this._circuitryData);
+    }
+
+    // Pass live device state so node editor can list real buildings
+    if (this._nodeEditor && typeof deviceState !== "undefined") {
+      this._nodeEditor.setDevices(deviceState);
+    }
+
+    // Set legend color from component color
+    if (this._nodeEditor) {
+      this._nodeEditor.highlightColor = color;
+    }
 
     // Color FAB — appended to body so it sits at page bottom-right
     const colorSelector = document.createElement("tb-color-selector");
@@ -541,121 +817,46 @@ class TbComponent extends HTMLElement {
     document.body.appendChild(colorSelector);
     this._colorFab = colorSelector;
 
-    const frame = overlay.querySelector(".editor-frame");
-    const modes = overlay.querySelector(".editor-modes");
-    const surfaceBtn = overlay.querySelector(".mode-surface");
-    const circuitryBtn = overlay.querySelector(".mode-circuitry");
-    const closeBtn = overlay.querySelector(".mode-close");
-    const nodeEditor = overlay.querySelector("tb-node-editor");
-
-    // Set legend color from component color
-    if (nodeEditor) {
-      nodeEditor.highlightColor = color;
-    }
-
-    // Load circuitry data into node editor
-    if (nodeEditor && this._circuitryData) {
-      nodeEditor.loadData(this._circuitryData);
-    }
-
-    // Pass live device state so node editor can list real buildings
-    if (nodeEditor && typeof deviceState !== "undefined") {
-      nodeEditor.setDevices(deviceState);
-    }
-
-    // Live-update surface element when toggle config changes in node editor
-    if (nodeEditor) {
-      nodeEditor.addEventListener("toggle-config-change", (e) => {
-        const { surfaceId: sid, orientation, style, size } = e.detail;
-        if (!sid) return;
-
-        // Update element attributes
-        let surfaceEl = editorSurface.querySelector(`[surface-id="${sid}"]`);
-        if (!surfaceEl) surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
-        if (surfaceEl) {
-          if (orientation !== "vertical") surfaceEl.setAttribute("orientation", orientation);
-          else surfaceEl.removeAttribute("orientation");
-
-          if (size !== "medium") surfaceEl.setAttribute("size", size);
-          else surfaceEl.removeAttribute("size");
-
-          if (style !== "squared") surfaceEl.setAttribute("switch-style", style);
-          else surfaceEl.removeAttribute("switch-style");
-        }
-
-        // Update grid constraints and resize wrapper if needed
-        if (this._surfaceGrid) {
-          const { minW, minH } = TbComponent._toggleConstraints(orientation, size);
-          this._surfaceGrid.updateConstraints(sid, { minW, minH });
-
-          // Sync editor wrapper dimensions to match updated grid component
-          const gridComp = this._surfaceGrid.getComponent(sid);
-          if (gridComp) {
-            const wrapper = editorSurface.querySelector(`.surface-el-wrapper[data-surface-id="${sid}"]`);
-            if (wrapper) {
-              wrapper.style.width = gridComp.w * CELL_SIZE + "px";
-              wrapper.style.height = gridComp.h * CELL_SIZE + "px";
-            }
-            const item = editorItems.get(sid);
-            if (item) { item.w = gridComp.w; item.h = gridComp.h; }
-          }
-        }
-
-        this._emitSurfaceChange(compId);
-      });
-    }
-
-    // Editor surface and interactive elements
-    const editorSurface = overlay.querySelector(".editor-surface");
-    const surfaceContent = overlay.querySelector(".editor-surface-content");
-    surfaceContent.style.cssText = "position:relative;width:100%;height:100%;";
-
     // Ghost element for placement preview
-    const ghost = document.createElement("div");
-    ghost.className = "surface-ghost";
-    ghost.style.display = "none";
-    editorSurface.appendChild(ghost);
+    this._editorGhost.style.display = "none";
 
-    // Track editor wrappers for collision detection
-    const editorItems = new Map();
+    // Track editor handles for collision detection
+    this._editorItems = new Map();
 
-    // Populate the editor surface with interactive wrappers
+    // Create transparent handles over each surface element
     if (this._surfaceGrid) {
       for (const [id, comp] of this._surfaceGrid.components) {
-        const wrapper = this._createEditorWrapper(
-          comp.el, id, comp.x, comp.y, comp.w, comp.h, comp.resizable,
-          editorItems, editorSurface, compId
+        const handle = this._createEditorHandle(
+          id, comp.x, comp.y, comp.w, comp.h, comp.resizable, compId
         );
-        surfaceContent.appendChild(wrapper);
-        editorItems.set(id, {
-          el: wrapper, x: comp.x, y: comp.y,
+        this._editorHandles.appendChild(handle);
+        this._editorItems.set(id, {
+          el: handle, x: comp.x, y: comp.y,
           w: comp.w, h: comp.h, resizable: comp.resizable,
         });
       }
     }
 
-    // Right-click context menu on the surface editor — adds elements via inner Grid
-    let surfaceMenu = null;
-
-    const dismissSurfaceMenu = () => {
-      if (surfaceMenu) { surfaceMenu.remove(); surfaceMenu = null; }
-      ghost.style.display = "none";
+    // Right-click context menu on the surface — adds elements via inner Grid
+    this._dismissSurfaceMenu = () => {
+      if (this._surfaceMenu) { this._surfaceMenu.remove(); this._surfaceMenu = null; }
+      this._editorGhost.style.display = "none";
     };
 
-    document.addEventListener("click", dismissSurfaceMenu);
+    document.addEventListener("click", this._dismissSurfaceMenu);
 
-    editorSurface.addEventListener("contextmenu", (e) => {
-      // Don't show on existing surface element wrappers
-      if (e.target.closest(".surface-el-wrapper")) return;
+    this._surfaceContextHandler = (e) => {
+      // Don't show on existing surface element handles
+      if (e.target.closest(".surface-handle")) return;
       e.preventDefault();
-      dismissSurfaceMenu();
+      this._dismissSurfaceMenu();
 
       const elementTypes = [
         { type: "led",    tag: "tb-led",    name: "LED Indicator", icon: "●" },
         { type: "label",  tag: "tb-label",  name: "Label",         icon: "A" },
         { type: "dial",   tag: "tb-dial",   name: "Dial",          icon: "◔" },
         { type: "toggle", tag: "tb-toggle", name: "Toggle Switch", icon: "⏻" },
-        { type: "alert",  tag: "tb-alert",  name: "Alert Light",   icon: "△" },
+        { type: "alert",  tag: "tb-alert",  name: "Alert",         icon: "⚠" },
       ].map(et => {
         const tmp = document.createElement(et.tag);
         const sc = tmp.constructor.sizeConstraints || { minW: 1, minH: 1 };
@@ -663,11 +864,11 @@ class TbComponent extends HTMLElement {
       });
 
       // Calculate grid position from click (clamped to 1-cell margin)
-      const surfaceRect = editorSurface.getBoundingClientRect();
+      const surfaceRect = this._surfaceView.getBoundingClientRect();
       const gridX = Math.max(1, Math.floor((e.clientX - surfaceRect.left) / CELL_SIZE));
       const gridY = Math.max(1, Math.floor((e.clientY - surfaceRect.top) / CELL_SIZE));
 
-      surfaceMenu = document.createElement("div");
+      const surfaceMenu = document.createElement("div");
       surfaceMenu.className = "ctx-menu";
       surfaceMenu.style.left = e.clientX + "px";
       surfaceMenu.style.top = e.clientY + "px";
@@ -678,7 +879,7 @@ class TbComponent extends HTMLElement {
       surfaceMenu.appendChild(hdr);
 
       for (const et of elementTypes) {
-        const fits = this._isSurfaceAreaFree(gridX, gridY, et.w, et.h, editorItems);
+        const fits = this._isSurfaceAreaFree(gridX, gridY, et.w, et.h, this._editorItems);
 
         const row = document.createElement("div");
         row.className = "ctx-menu-item" + (fits ? "" : " disabled");
@@ -700,16 +901,16 @@ class TbComponent extends HTMLElement {
 
         // Ghost preview on hover
         row.addEventListener("mouseenter", () => {
-          ghost.style.display = "";
-          ghost.style.left = gridX * CELL_SIZE + "px";
-          ghost.style.top = gridY * CELL_SIZE + "px";
-          ghost.style.width = et.w * CELL_SIZE + "px";
-          ghost.style.height = et.h * CELL_SIZE + "px";
-          ghost.classList.toggle("blocked", !fits);
+          this._editorGhost.style.display = "";
+          this._editorGhost.style.left = gridX * CELL_SIZE + "px";
+          this._editorGhost.style.top = gridY * CELL_SIZE + "px";
+          this._editorGhost.style.width = et.w * CELL_SIZE + "px";
+          this._editorGhost.style.height = et.h * CELL_SIZE + "px";
+          this._editorGhost.classList.toggle("blocked", !fits);
         });
 
         row.addEventListener("mouseleave", () => {
-          ghost.style.display = "none";
+          this._editorGhost.style.display = "none";
         });
 
         if (fits) {
@@ -728,20 +929,19 @@ class TbComponent extends HTMLElement {
             const newComp = this._surfaceGrid.getComponent(newSid);
             const actualW = newComp ? newComp.w : et.w;
             const actualH = newComp ? newComp.h : et.h;
-            const wrapper = this._createEditorWrapper(
-              newEl, newSid, gridX, gridY, actualW, actualH,
-              newComp ? newComp.resizable : true,
-              editorItems, editorSurface, compId
+            const handle = this._createEditorHandle(
+              newSid, gridX, gridY, actualW, actualH,
+              newComp ? newComp.resizable : true, compId
             );
-            surfaceContent.appendChild(wrapper);
-            editorItems.set(newSid, {
-              el: wrapper, x: gridX, y: gridY,
+            this._editorHandles.appendChild(handle);
+            this._editorItems.set(newSid, {
+              el: handle, x: gridX, y: gridY,
               w: actualW, h: actualH, resizable: newComp ? newComp.resizable : true,
             });
 
             this._emitSurfaceChange(compId);
-            ghost.style.display = "none";
-            dismissSurfaceMenu();
+            this._editorGhost.style.display = "none";
+            this._dismissSurfaceMenu();
           });
         }
 
@@ -749,6 +949,7 @@ class TbComponent extends HTMLElement {
       }
 
       document.body.appendChild(surfaceMenu);
+      this._surfaceMenu = surfaceMenu;
 
       // Keep within viewport
       const menuRect = surfaceMenu.getBoundingClientRect();
@@ -758,121 +959,111 @@ class TbComponent extends HTMLElement {
       if (menuRect.bottom > window.innerHeight) {
         surfaceMenu.style.top = (e.clientY - menuRect.height) + "px";
       }
-    });
+    };
 
-    // Start frame at the box's current position
-    frame.style.position = "absolute";
-    frame.style.left = rect.left + "px";
-    frame.style.top = rect.top + "px";
-    frame.style.width = rect.width + "px";
-    frame.style.height = rect.height + "px";
-    frame.style.transition = "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)";
+    this._surfaceView.addEventListener("contextmenu", this._surfaceContextHandler);
 
-    document.body.appendChild(overlay);
-    overlay.style.setProperty("--comp-hl", highlightColor);
-    overlay.classList.add("open");
-
-    // Animate to center of screen at current size
+    // Animate to center of screen
     const centerX = (window.innerWidth - rect.width) / 2;
     const centerY = (window.innerHeight - rect.height) / 2;
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        frame.style.left = centerX + "px";
-        frame.style.top = centerY + "px";
-        // width and height stay the same — no expansion
+        this.style.left = centerX + "px";
+        this.style.top = centerY + "px";
       });
     });
 
-    // Hide the grid box while the editor is open
-    this.closest(".component-box").style.visibility = "hidden";
-
     this._animating = false;
     this._open = true;
-    this._overlay = overlay;
     this._mode = "surface";
-    this._dismissSurfaceMenu = dismissSurfaceMenu;
 
     // Store original frame size for restoring when switching back to surface
     const margin = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--editor-margin")) || 40;
     this._origFrame = {
       width: rect.width,
       height: rect.height,
-      left: (window.innerWidth - rect.width) / 2,
-      top: (window.innerHeight - rect.height) / 2,
+      left: centerX,
+      top: centerY,
     };
 
     // Mode switching
-    surfaceBtn.addEventListener("click", (e) => {
+    const surfaceBtn = this.shadowRoot.querySelector(".mode-surface");
+    const circuitryBtn = this.shadowRoot.querySelector(".mode-circuitry");
+    const closeBtn = this.shadowRoot.querySelector(".mode-close");
+
+    this._modeSurfaceHandler = (e) => {
       e.stopPropagation();
-      modes.classList.remove("circuitry-active");
+      this.classList.remove("circuitry-active");
       surfaceBtn.classList.add("active");
       circuitryBtn.classList.remove("active");
       if (colorSelector) colorSelector.style.display = "";
       this._mode = "surface";
 
       // Sync circuitry changes to surface elements
-      if (nodeEditor) {
-        this._circuitryData = nodeEditor.getData();
+      if (this._nodeEditor) {
+        this._circuitryData = this._nodeEditor.getData();
         this._syncLabelConfig();
         this._syncToggleConfig();
       }
 
-      // Animate frame back to original size
-      frame.style.left = this._origFrame.left + "px";
-      frame.style.top = this._origFrame.top + "px";
-      frame.style.width = this._origFrame.width + "px";
-      frame.style.height = this._origFrame.height + "px";
-    });
+      // Animate back to original size
+      this.style.left = this._origFrame.left + "px";
+      this.style.top = this._origFrame.top + "px";
+      this.style.width = this._origFrame.width + "px";
+      this.style.height = this._origFrame.height + "px";
+    };
 
-    circuitryBtn.addEventListener("click", (e) => {
+    this._modeCircuitryHandler = (e) => {
       e.stopPropagation();
-      modes.classList.add("circuitry-active");
+      this.classList.add("circuitry-active");
       circuitryBtn.classList.add("active");
       surfaceBtn.classList.remove("active");
       if (colorSelector) colorSelector.style.display = "none";
       this._mode = "circuitry";
 
-      // Animate frame to fill viewport minus margin
-      frame.style.left = margin + "px";
-      frame.style.top = margin + "px";
-      frame.style.width = (window.innerWidth - margin * 2) + "px";
-      frame.style.height = (window.innerHeight - margin * 2) + "px";
-    });
+      // Animate to fill viewport minus margin
+      this.style.left = margin + "px";
+      this.style.top = margin + "px";
+      this.style.width = (window.innerWidth - margin * 2) + "px";
+      this.style.height = (window.innerHeight - margin * 2) + "px";
+    };
 
-    // Close
-    closeBtn.addEventListener("click", (e) => {
+    this._modeCloseHandler = (e) => {
       e.stopPropagation();
       this._closeEditor();
-    });
+    };
 
-    overlay.querySelector(".editor-backdrop").addEventListener("click", () => {
-      this._closeEditor();
-    });
+    surfaceBtn.addEventListener("click", this._modeSurfaceHandler);
+    circuitryBtn.addEventListener("click", this._modeCircuitryHandler);
+    closeBtn.addEventListener("click", this._modeCloseHandler);
+
+    // Backdrop click to close
+    this._backdropHandler = () => { this._closeEditor(); };
+    this._editorBackdrop.addEventListener("click", this._backdropHandler);
 
     // Color change
     if (colorSelector) {
-      colorSelector.addEventListener("color-change", (e) => {
+      this._colorChangeHandler = (e) => {
         const newColor = e.detail.color;
         this.setAttribute("color", newColor);
-        overlay.querySelector(".editor-surface").style.background = newColor;
-        const circuitry = overlay.querySelector(".editor-circuitry");
-        circuitry.style.background = this._darkenColor(newColor, 0.4);
-        circuitry.style.borderColor = newColor;
+        this._circuitryView.style.background = this._darkenColor(newColor, 0.4);
+        this._circuitryView.style.borderColor = newColor;
 
         // Update highlight color for editor UI
         const newHighlight = TbComponent.computeHighlight(newColor);
-        overlay.style.setProperty("--comp-hl", newHighlight);
+        this.style.setProperty("--comp-hl", newHighlight);
 
         // Update node editor legend colors
-        if (nodeEditor) nodeEditor.highlightColor = newColor;
+        if (this._nodeEditor) this._nodeEditor.highlightColor = newColor;
 
         // Dispatch event for config save
         this.dispatchEvent(new CustomEvent("component-config-change", {
           bubbles: true,
           detail: { id: compId, property: "color", value: newColor },
         }));
-      });
+      };
+      colorSelector.addEventListener("color-change", this._colorChangeHandler);
     }
 
     // Escape to close
@@ -884,15 +1075,11 @@ class TbComponent extends HTMLElement {
 
   /** Close editor with reverse animation back to grid position */
   _closeEditor() {
-    if (!this._open || !this._overlay) return;
-
-    const rect = this.getBoundingClientRect();
-    const frame = this._overlay.querySelector(".editor-frame");
+    if (!this._open) return;
 
     // Save node editor data before closing
-    const nodeEditor = this._overlay.querySelector("tb-node-editor");
-    if (nodeEditor) {
-      this._circuitryData = nodeEditor.getData();
+    if (this._nodeEditor) {
+      this._circuitryData = this._nodeEditor.getData();
       this.dispatchEvent(new CustomEvent("component-config-change", {
         bubbles: true,
         detail: {
@@ -901,7 +1088,6 @@ class TbComponent extends HTMLElement {
           value: this._circuitryData,
         },
       }));
-
     }
 
     // Clean up properties panel
@@ -916,106 +1102,102 @@ class TbComponent extends HTMLElement {
       document.removeEventListener("click", this._dismissSurfaceMenu);
     }
 
-    // Animate back to box position
-    frame.style.left = rect.left + "px";
-    frame.style.top = rect.top + "px";
-    frame.style.width = rect.width + "px";
-    frame.style.height = rect.height + "px";
-
     // Remove color FAB
     if (this._colorFab) {
       this._colorFab.remove();
       this._colorFab = null;
     }
 
-    // Restore live surface elements back to the surface grid container,
-    // then sync label/toggle config so elements are findable in the shadow DOM
-    this._restoreSurfaceElements();
+    // Sync label/toggle config so surface elements reflect circuitry changes
     this._syncLabelConfig();
     this._syncToggleConfig();
 
-    // Persist the surface config now that synced attributes are applied
+    // Persist the surface config
     this._emitSurfaceChange(this.getAttribute("component-id"));
 
+    // Animate back to grid box position
+    this.style.left = this._gridRect.left + "px";
+    this.style.top = this._gridRect.top + "px";
+    this.style.width = this._gridRect.width + "px";
+    this.style.height = this._gridRect.height + "px";
+
+    // Remove circuitry mode if active
+    this.classList.remove("circuitry-active");
+
     setTimeout(() => {
-      this._overlay.remove();
-      this._overlay = null;
+      // Remove editing mode and restore original grid-managed inline styles
+      this.classList.remove("editing");
       this._open = false;
-      // Show the grid box again
-      const box = this.closest(".component-box");
-      if (box) box.style.visibility = "";
+
+      if (this._savedGridStyles) {
+        this.style.position = this._savedGridStyles.position;
+        this.style.left = this._savedGridStyles.left;
+        this.style.top = this._savedGridStyles.top;
+        this.style.width = this._savedGridStyles.width;
+        this.style.height = this._savedGridStyles.height;
+        this.style.zIndex = this._savedGridStyles.zIndex;
+        this.style.overflow = this._savedGridStyles.overflow;
+        this.style.transition = this._savedGridStyles.transition;
+        this._savedGridStyles = null;
+      }
+
+      // Clear editor handles
+      this._editorHandles.innerHTML = "";
+      this._editorItems = null;
+
+      // Reset toolbar button states
+      const surfaceBtn = this.shadowRoot.querySelector(".mode-surface");
+      const circuitryBtn = this.shadowRoot.querySelector(".mode-circuitry");
+      surfaceBtn.classList.add("active");
+      circuitryBtn.classList.remove("active");
     }, 400);
 
+    // Remove event listeners
     document.removeEventListener("keydown", this._escHandler);
+    this._editorBackdrop.removeEventListener("click", this._backdropHandler);
+    this._surfaceView.removeEventListener("contextmenu", this._surfaceContextHandler);
+
+    const surfaceBtn = this.shadowRoot.querySelector(".mode-surface");
+    const circuitryBtn = this.shadowRoot.querySelector(".mode-circuitry");
+    const closeBtn = this.shadowRoot.querySelector(".mode-close");
+    surfaceBtn.removeEventListener("click", this._modeSurfaceHandler);
+    circuitryBtn.removeEventListener("click", this._modeCircuitryHandler);
+    closeBtn.removeEventListener("click", this._modeCloseHandler);
   }
 
-  /** Restore live surface elements from editor wrappers back to the surface grid */
-  _restoreSurfaceElements() {
-    if (!this._surfaceGrid) return;
-    for (const [, comp] of this._surfaceGrid.components) {
-      const el = comp.el;
-      delete el._savedStyles;
-      // Reapply grid positioning from current component values
-      // (which include any drag/resize changes made during editing)
-      el.style.position = "absolute";
-      el.style.left = comp.x * CELL_SIZE + "px";
-      el.style.top = comp.y * CELL_SIZE + "px";
-      el.style.width = comp.w * CELL_SIZE + "px";
-      el.style.height = comp.h * CELL_SIZE + "px";
-      // Move back to the surface grid container
-      this._surfaceElementsContainer.appendChild(el);
-    }
-  }
-
-  /** Create an interactive wrapper for a surface element in the editor */
-  _createEditorWrapper(origEl, surfaceId, x, y, w, h, resizable, editorItems, editorSurface, compId) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "surface-el-wrapper" + (resizable ? "" : " no-resize");
-    wrapper.dataset.surfaceId = surfaceId;
-    wrapper.style.left = x * CELL_SIZE + "px";
-    wrapper.style.top = y * CELL_SIZE + "px";
-    wrapper.style.width = w * CELL_SIZE + "px";
-    wrapper.style.height = h * CELL_SIZE + "px";
-
-    // Use the actual live element (not a clone) so it receives state updates
-    // Save original inline styles for restoration when editor closes
-    origEl._savedStyles = {
-      position: origEl.style.position,
-      left: origEl.style.left,
-      top: origEl.style.top,
-      width: origEl.style.width,
-      height: origEl.style.height,
-    };
-    origEl.style.position = "";
-    origEl.style.left = "";
-    origEl.style.top = "";
-    origEl.style.width = "100%";
-    origEl.style.height = "100%";
-    wrapper.appendChild(origEl);
+  /** Create a transparent handle overlay for a surface element in the editor */
+  _createEditorHandle(surfaceId, x, y, w, h, resizable, compId) {
+    const handle = document.createElement("div");
+    handle.className = "surface-handle" + (resizable ? "" : " no-resize");
+    handle.dataset.surfaceId = surfaceId;
+    handle.style.left = x * CELL_SIZE + "px";
+    handle.style.top = y * CELL_SIZE + "px";
+    handle.style.width = w * CELL_SIZE + "px";
+    handle.style.height = h * CELL_SIZE + "px";
 
     if (resizable) {
-      const handle = document.createElement("div");
-      handle.className = "surface-resize-handle";
+      const resizeEl = document.createElement("div");
+      resizeEl.className = "surface-resize-handle";
 
       // Set cursor based on which axes can actually resize
       const gridComp = this._surfaceGrid ? this._surfaceGrid.getComponent(surfaceId) : null;
       if (gridComp) {
         const canH = gridComp.maxW === null || gridComp.maxW > gridComp.minW;
         const canV = gridComp.maxH === null || gridComp.maxH > gridComp.minH;
-        if (canH && !canV) handle.style.cursor = "ew-resize";
-        else if (!canH && canV) handle.style.cursor = "ns-resize";
+        if (canH && !canV) resizeEl.style.cursor = "ew-resize";
+        else if (!canH && canV) resizeEl.style.cursor = "ns-resize";
       }
 
-      wrapper.appendChild(handle);
+      handle.appendChild(resizeEl);
 
-      handle.addEventListener("mousedown", (e) => {
+      resizeEl.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this._startSurfaceResize(wrapper, surfaceId, e, editorItems, editorSurface, compId);
+        this._startSurfaceResize(handle, surfaceId, e, compId);
       });
     }
 
-    wrapper.addEventListener("mousedown", (e) => {
+    handle.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       // Use a drag threshold so clicks pass through to interactive elements
       const startX = e.clientX;
@@ -1025,7 +1207,7 @@ class TbComponent extends HTMLElement {
       const onMove = (me) => {
         if (!dragging && (Math.abs(me.clientX - startX) > 3 || Math.abs(me.clientY - startY) > 3)) {
           dragging = true;
-          this._startSurfaceDrag(wrapper, surfaceId, e, editorItems, editorSurface, compId);
+          this._startSurfaceDrag(handle, surfaceId, e, compId);
         }
       };
 
@@ -1039,13 +1221,14 @@ class TbComponent extends HTMLElement {
     });
 
     // Double-click to open overwritable properties panel
-    wrapper.addEventListener("dblclick", (e) => {
+    handle.addEventListener("dblclick", (e) => {
       e.stopPropagation();
-      this._showPropertiesPanel(wrapper, origEl, surfaceId, editorSurface, compId);
+      const origEl = this._surfaceGrid ? this._surfaceGrid.getComponent(surfaceId)?.el : null;
+      if (origEl) this._showPropertiesPanel(handle, origEl, surfaceId, compId);
     });
 
     // Right-click context menu to delete this surface element
-    wrapper.addEventListener("contextmenu", (e) => {
+    handle.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (this._dismissSurfaceMenu) this._dismissSurfaceMenu();
@@ -1060,13 +1243,12 @@ class TbComponent extends HTMLElement {
       del.innerHTML = '<span class="ctx-menu-delete-icon">&#x2716;</span> <span>Delete</span>';
       del.addEventListener("click", () => {
         // Remove the corresponding node from the live node editor
-        const nodeEditor = this._overlay ? this._overlay.querySelector("tb-node-editor") : null;
-        if (nodeEditor) {
-          nodeEditor.removeNode("surface-" + surfaceId);
+        if (this._nodeEditor) {
+          this._nodeEditor.removeNode("surface-" + surfaceId);
         }
         this.removeSurfaceElement(surfaceId);
-        wrapper.remove();
-        editorItems.delete(surfaceId);
+        handle.remove();
+        if (this._editorItems) this._editorItems.delete(surfaceId);
         this._emitSurfaceChange(compId);
         menu.remove();
       });
@@ -1091,14 +1273,14 @@ class TbComponent extends HTMLElement {
       document.addEventListener("click", dismissOnce);
     });
 
-    return wrapper;
+    return handle;
   }
 
   /**
    * Show a floating properties panel for a surface element's overwritable properties.
    * Each overwritable property gets a checkbox (enable overwrite) + input (custom value).
    */
-  _showPropertiesPanel(wrapper, origEl, surfaceId, editorSurface, compId) {
+  _showPropertiesPanel(handle, origEl, surfaceId, compId) {
     // Dismiss any existing panel
     if (this._propsPanel) {
       this._propsPanel.remove();
@@ -1111,11 +1293,11 @@ class TbComponent extends HTMLElement {
     const panel = document.createElement("div");
     panel.className = "surface-props-panel";
 
-    // Position panel below the wrapper
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const surfaceRect = editorSurface.getBoundingClientRect();
-    panel.style.left = (wrapperRect.left - surfaceRect.left) + "px";
-    panel.style.top = (wrapperRect.bottom - surfaceRect.top + 4) + "px";
+    // Position panel below the handle
+    const handleRect = handle.getBoundingClientRect();
+    const surfaceRect = this._surfaceView.getBoundingClientRect();
+    panel.style.left = (handleRect.left - surfaceRect.left) + "px";
+    panel.style.top = (handleRect.bottom - surfaceRect.top + 4) + "px";
 
     for (const prop of overwritable) {
       const row = document.createElement("div");
@@ -1138,25 +1320,20 @@ class TbComponent extends HTMLElement {
       input.placeholder = "device value";
       input.disabled = !checkbox.checked;
 
-      // Sync checkbox → attribute on original element + clone
+      // Sync checkbox → attribute on original element
       checkbox.addEventListener("change", () => {
-        const clone = wrapper.querySelector(origEl.tagName.toLowerCase());
         if (checkbox.checked) {
           origEl.setAttribute(prop.overwriteAttr, "");
-          if (clone) clone.setAttribute(prop.overwriteAttr, "");
         } else {
           origEl.removeAttribute(prop.overwriteAttr);
-          if (clone) clone.removeAttribute(prop.overwriteAttr);
         }
         input.disabled = !checkbox.checked;
         this._emitSurfaceChange(compId);
       });
 
-      // Sync input → attribute on original element + clone
+      // Sync input → attribute on original element
       input.addEventListener("input", () => {
-        const clone = wrapper.querySelector(origEl.tagName.toLowerCase());
         origEl.setAttribute(prop.name, input.value);
-        if (clone) clone.setAttribute(prop.name, input.value);
         this._emitSurfaceChange(compId);
       });
 
@@ -1166,12 +1343,12 @@ class TbComponent extends HTMLElement {
       panel.appendChild(row);
     }
 
-    editorSurface.appendChild(panel);
+    this._editorHandles.appendChild(panel);
     this._propsPanel = panel;
 
     // Dismiss when clicking outside the panel
     const dismiss = (e) => {
-      if (panel.contains(e.target) || wrapper.contains(e.target)) return;
+      if (panel.contains(e.target) || handle.contains(e.target)) return;
       panel.remove();
       this._propsPanel = null;
       document.removeEventListener("mousedown", dismiss);
@@ -1183,16 +1360,16 @@ class TbComponent extends HTMLElement {
   }
 
   /** Start dragging a surface element in the editor */
-  _startSurfaceDrag(wrapper, surfaceId, startEvent, editorItems, editorSurface, compId) {
-    const item = editorItems.get(surfaceId);
+  _startSurfaceDrag(handle, surfaceId, startEvent, compId) {
+    const item = this._editorItems ? this._editorItems.get(surfaceId) : null;
     if (!item) return;
 
     const startMouseX = startEvent.clientX;
     const startMouseY = startEvent.clientY;
     const startX = item.x;
     const startY = item.y;
-    const maxCols = Math.floor(editorSurface.clientWidth / CELL_SIZE);
-    const maxRows = Math.floor(editorSurface.clientHeight / CELL_SIZE);
+    const maxCols = Math.floor(this._surfaceView.clientWidth / CELL_SIZE);
+    const maxRows = Math.floor(this._surfaceView.clientHeight / CELL_SIZE);
 
     const onMove = (e) => {
       const dx = e.clientX - startMouseX;
@@ -1201,27 +1378,19 @@ class TbComponent extends HTMLElement {
       const newX = Math.max(1, Math.min(maxCols - 1 - item.w, startX + Math.round(dx / CELL_SIZE)));
       const newY = Math.max(1, Math.min(maxRows - 1 - item.h, startY + Math.round(dy / CELL_SIZE)));
 
-      wrapper.style.left = newX * CELL_SIZE + "px";
-      wrapper.style.top = newY * CELL_SIZE + "px";
+      handle.style.left = newX * CELL_SIZE + "px";
+      handle.style.top = newY * CELL_SIZE + "px";
       item.x = newX;
       item.y = newY;
+      // Move the actual surface element in real time
+      if (this._surfaceGrid) {
+        this._surfaceGrid.updateComponent(surfaceId, { x: newX, y: newY });
+      }
     };
 
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
-      if (this._surfaceGrid) {
-        this._surfaceGrid.updateComponent(surfaceId, { x: item.x, y: item.y });
-        // Restore editor-mode styles that updateComponent overwrites
-        const el = this._surfaceGrid.getComponent(surfaceId)?.el;
-        if (el) {
-          el.style.position = "";
-          el.style.left = "";
-          el.style.top = "";
-          el.style.width = "100%";
-          el.style.height = "100%";
-        }
-      }
       this._emitSurfaceChange(compId);
     };
 
@@ -1230,8 +1399,8 @@ class TbComponent extends HTMLElement {
   }
 
   /** Start resizing a surface element in the editor */
-  _startSurfaceResize(wrapper, surfaceId, startEvent, editorItems, editorSurface, compId) {
-    const item = editorItems.get(surfaceId);
+  _startSurfaceResize(handle, surfaceId, startEvent, compId) {
+    const item = this._editorItems ? this._editorItems.get(surfaceId) : null;
     if (!item) return;
 
     const gridComp = this._surfaceGrid ? this._surfaceGrid.getComponent(surfaceId) : null;
@@ -1243,8 +1412,8 @@ class TbComponent extends HTMLElement {
     const startMouseY = startEvent.clientY;
     const startW = item.w;
     const startH = item.h;
-    const maxCols = Math.floor(editorSurface.clientWidth / CELL_SIZE);
-    const maxRows = Math.floor(editorSurface.clientHeight / CELL_SIZE);
+    const maxCols = Math.floor(this._surfaceView.clientWidth / CELL_SIZE);
+    const maxRows = Math.floor(this._surfaceView.clientHeight / CELL_SIZE);
 
     // Per-axis: only resize axes where max > min
     const canResizeH = maxW === null || maxW > minW;
@@ -1254,7 +1423,7 @@ class TbComponent extends HTMLElement {
     const resizeCursor = canResizeH && canResizeV ? "nwse-resize" : canResizeH ? "ew-resize" : "ns-resize";
     document.body.style.cursor = resizeCursor;
     document.body.style.userSelect = "none";
-    wrapper.classList.add("resizing");
+    handle.classList.add("resizing");
 
     const onMove = (e) => {
       const dx = e.clientX - startMouseX;
@@ -1270,10 +1439,14 @@ class TbComponent extends HTMLElement {
         if (maxH !== null) newH = Math.min(newH, maxH);
       }
 
-      wrapper.style.width = newW * CELL_SIZE + "px";
-      wrapper.style.height = newH * CELL_SIZE + "px";
+      handle.style.width = newW * CELL_SIZE + "px";
+      handle.style.height = newH * CELL_SIZE + "px";
       item.w = newW;
       item.h = newH;
+      // Resize the actual surface element in real time
+      if (this._surfaceGrid) {
+        this._surfaceGrid.updateComponent(surfaceId, { w: newW, h: newH });
+      }
     };
 
     const onUp = () => {
@@ -1281,16 +1454,7 @@ class TbComponent extends HTMLElement {
       document.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-      wrapper.classList.remove("resizing");
-      if (this._surfaceGrid) {
-        this._surfaceGrid.updateComponent(surfaceId, { w: item.w, h: item.h });
-        // updateComponent sets inline pixel sizes on the element, which would
-        // override the CSS "100%" rule and break continuous re-centering on the
-        // next resize drag. Restore percentage sizing so the element keeps
-        // stretching to fill its editor wrapper.
-        const el = this._surfaceGrid.getComponent(surfaceId)?.el;
-        if (el) { el.style.width = "100%"; el.style.height = "100%"; }
-      }
+      handle.classList.remove("resizing");
       this._emitSurfaceChange(compId);
     };
 

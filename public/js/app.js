@@ -419,17 +419,12 @@ function propagateDeviceStateViaCircuitry(tbComp, circuitry, devices) {
 
 /**
  * Find a surface element by its surface-id within a tb-component.
- * Checks both the shadow DOM and the editor overlay (elements are
- * temporarily reparented to the overlay while the editor is open).
+ * Elements always live in the shadow DOM (never reparented).
  */
 function findSurfaceElement(tbComp, surfaceId) {
   if (!surfaceId) return null;
   if (tbComp.shadowRoot) {
-    const el = tbComp.shadowRoot.querySelector(`[surface-id="${surfaceId}"]`);
-    if (el) return el;
-  }
-  if (tbComp._overlay) {
-    return tbComp._overlay.querySelector(`[surface-id="${surfaceId}"]`);
+    return tbComp.shadowRoot.querySelector(`[surface-id="${surfaceId}"]`);
   }
   return null;
 }

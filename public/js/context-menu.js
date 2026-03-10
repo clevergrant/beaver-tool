@@ -152,8 +152,9 @@
           dismiss();
           return;
         }
-        // Don't show if an editor overlay is open
-        if (document.querySelector(".editor-overlay")) {
+        // Don't show if a component editor is open
+        if (box.querySelector("tb-component")?.classList.contains("editing") ||
+            box.classList.contains("editing")) {
           dismiss();
           return;
         }
