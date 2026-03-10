@@ -120,3 +120,32 @@ SurfaceComponents.register({
     };
   },
 });
+
+// --- Rainbow Button ---
+SurfaceComponents.register({
+  type: "rainbow",
+  name: "Rainbow Button",
+  icon: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" fill="#2a2a28" stroke="#555" stroke-width="1.2"/><path d="M8 2a6 6 0 0 1 0 12" stroke="#ff4c2e" stroke-width="1.5" fill="none"/><path d="M8 14a6 6 0 0 1 0-12" stroke="#64b53c" stroke-width="1.5" fill="none"/><circle cx="8" cy="8" r="2.5" fill="#fdd42c" opacity="0.8"/></svg>',
+  category: "control",
+  width: 2,
+  height: 2,
+  resizable: false,
+  factory(id, gridX, gridY) {
+    return {
+      id,
+      name: "Rainbow Button",
+      x: gridX,
+      y: gridY,
+      minWidth: 2,
+      minHeight: 2,
+      color: "#1a1a18",
+      surface: [{
+        type: "rainbow",
+        x: 0, y: 0,
+        width: 2, height: 2,
+        props: {},
+      }],
+      circuitry: { nodes: [], edges: [] },
+    };
+  },
+});

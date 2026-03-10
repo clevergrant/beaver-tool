@@ -971,6 +971,18 @@ class TbNodeEditor extends HTMLElement {
       });
     }
 
+    // Rainbow FPS input
+    const rainbowFps = el.querySelector(".rainbow-fps");
+    if (rainbowFps) {
+      rainbowFps.addEventListener("mousedown", (e) => e.stopPropagation());
+      rainbowFps.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        const val = parseFloat(rainbowFps.value);
+        node.config.fps = val > 0 ? val : 2;
+        this._emitToggleConfigChange(node);
+      });
+    }
+
     // Port connections (disabled when multi-selected)
     for (const port of el.querySelectorAll(".port")) {
       port.addEventListener("mousedown", (e) => {
@@ -1156,6 +1168,7 @@ class TbNodeEditor extends HTMLElement {
       "surface-dial": "Dial",
       "surface-label": "Label",
       "surface-alert": "Alert",
+      "surface-rainbow": "Rainbow",
     };
     return names[type] || type;
   }
@@ -1229,6 +1242,16 @@ class TbNodeEditor extends HTMLElement {
             <option value="medium"${size === "medium" ? " selected" : ""}>medium</option>
             <option value="large"${size === "large" ? " selected" : ""}>large</option>
           </select>
+        </div>`;
+    }
+    if (node.type === "surface-rainbow") {
+      const label = node.config?.label || node.config?.surfaceId || "—";
+      const fps = node.config?.fps || 2;
+      return `
+        <span style="color:#60a0ff;">${label}</span>
+        <div class="node-param-row">
+          <span class="node-param-label">fps</span>
+          <input class="node-select rainbow-fps" type="number" min="1" step="1" value="${fps}" style="width:60px;" />
         </div>`;
     }
     if (node.type.startsWith("surface-")) {

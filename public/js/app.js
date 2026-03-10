@@ -287,6 +287,15 @@ function createSurfaceElement(elem, index) {
 				}
 			})
 			break
+		case "rainbow":
+			el = document.createElement("tb-rainbow")
+			delete props.on
+			el.addEventListener("color-pick", (e) => {
+				if (el.surfaceId && el.parentComponent) {
+					handleColorPickViaCircuitry(el.parentComponent, el.surfaceId, e.detail.color)
+				}
+			})
+			break
 		default:
 			console.warn(`Unknown surface element type: ${elem.type}`)
 			return null
@@ -536,6 +545,33 @@ async function handleColorPickViaCircuitry(tbComp, surfaceId, color) {
 			} catch (err) {
 				console.error("Color pick failed:", err)
 			}
+		}
+
+		// Sync sibling color surfaces (e.g. color picker) connected to the same target
+		if (targetNode) {
+			syncSiblingColorSurfaces(tbComp, circuitry, targetNode.id, nodeId, color)
+		}
+	}
+}
+
+/**
+ * Find other color-output surface nodes connected to the same target node
+ * and update their displayed color. Keeps color pickers in sync with
+ * rainbow buttons (and vice versa) when wired to the same lever.
+ */
+function syncSiblingColorSurfaces(tbComp, circuitry, targetNodeId, sourceNodeId, color) {
+	const compId = tbComp.getAttribute("component-id")
+	for (const edge of circuitry.edges) {
+		if (edge.to !== targetNodeId || edge.from === sourceNodeId) continue
+
+		const siblingNode = circuitry.nodes.find(n => n.id === edge.from)
+		if (!siblingNode?.config?.surfaceManaged) continue
+
+		const sid = siblingNode.config.surfaceId
+		const el = findSurfaceElement(tbComp, sid)
+		if (el && el.getAttribute("color") !== color) {
+			el.setAttribute("color", color)
+			persistSurfaceColor(compId, sid, color)
 		}
 	}
 }

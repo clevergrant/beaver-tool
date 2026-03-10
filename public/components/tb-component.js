@@ -347,6 +347,7 @@ class TbComponent extends HTMLElement {
     // Apply circuitry node parameters to surface elements on first load
     this._syncLabelConfig();
     this._syncToggleConfig();
+    this._syncRainbowConfig();
   }
 
   attributeChangedCallback() {
@@ -637,6 +638,23 @@ class TbComponent extends HTMLElement {
     }
   }
 
+  _syncRainbowConfig() {
+    const { nodes } = this._circuitryData;
+    if (!nodes?.length) return;
+
+    for (const node of nodes) {
+      if (node.type !== "surface-rainbow" || !node.config?.surfaceManaged) continue;
+      const sid = node.config.surfaceId;
+      const surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
+      if (!surfaceEl) continue;
+
+      const fps = node.config.fps;
+      if (fps && parseFloat(fps) > 0) {
+        surfaceEl.setAttribute("fps", String(fps));
+      }
+    }
+  }
+
   /** Emit circuitry change event for config persistence */
   _emitCircuitryChange() {
     this.dispatchEvent(new CustomEvent("component-config-change", {
@@ -819,6 +837,7 @@ class TbComponent extends HTMLElement {
     // Apply circuitry-driven config (size, orientation, label overrides, etc.)
     this._syncToggleConfig();
     this._syncLabelConfig();
+    this._syncRainbowConfig();
 
     // Update the editor handle to match the (potentially changed) size
     const updatedComp = this._surfaceGrid.getComponent(newSid);
@@ -1016,6 +1035,7 @@ class TbComponent extends HTMLElement {
         { type: "toggle", tag: "tb-toggle", name: "Toggle Switch", icon: "⏻" },
         { type: "alert",  tag: "tb-alert",  name: "Alert",         icon: "⚠" },
         { type: "color-picker", tag: "tb-color-picker", name: "Color Picker", icon: "🎨" },
+        { type: "rainbow", tag: "tb-rainbow", name: "Rainbow", icon: "🌈" },
       ].map(et => {
         const tmp = document.createElement(et.tag);
         const sc = tmp.constructor.sizeConstraints || { minW: 1, minH: 1 };
@@ -1207,6 +1227,7 @@ class TbComponent extends HTMLElement {
         this._circuitryData = this._nodeEditor.getData();
         this._syncLabelConfig();
         this._syncToggleConfig();
+        this._syncRainbowConfig();
       }
 
       // Animate back to original size
@@ -1318,6 +1339,7 @@ class TbComponent extends HTMLElement {
     // Sync label/toggle config so surface elements reflect circuitry changes
     this._syncLabelConfig();
     this._syncToggleConfig();
+    this._syncRainbowConfig();
 
     // Persist the surface config
     this._emitSurfaceChange(this.getAttribute("component-id"));
