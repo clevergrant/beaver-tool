@@ -2,7 +2,8 @@
  * <tb-node-editor> — Node graph editor for component circuitry.
  *
  * Infinite scroll canvas with draggable nodes and bezier connections.
- * Pan by dragging the background. Nodes are dragged individually.
+ * Pan by middle-mouse dragging the background. Left-drag draws a selection
+ * rectangle; shift-click toggles individual nodes. Selected nodes move together.
  * Has a re-center button to return to the origin.
  *
  * Usage:
@@ -20,11 +21,11 @@ class TbNodeEditor extends HTMLElement {
     this._pan = { x: 0, y: 0 };
     this._panning = false;
     this._panStart = { x: 0, y: 0 };
-    this._draggingNode = null;
-    this._dragOffset = { x: 0, y: 0 };
     this._connecting = null; // { nodeId, portType, portIndex, startX, startY }
     this._nextNodeId = 0;
     this._devices = {}; // live game devices (levers & adapters)
+    this._selectedNodes = new Set(); // IDs of selected nodes
+    this._selectionRect = null; // { startX, startY, _shift } in client coords
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -55,16 +56,6 @@ class TbNodeEditor extends HTMLElement {
           transform-origin: 0 0;
         }
 
-        /* Grid pattern on canvas */
-        .canvas::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image:
-            radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 20px 20px;
-          pointer-events: none;
-        }
 
         svg.connections {
           position: absolute;
@@ -104,6 +95,20 @@ class TbNodeEditor extends HTMLElement {
 
         .node:hover {
           border-color: #8a8a7a;
+        }
+
+        .node.selected {
+          border-color: #60a0ff;
+          box-shadow: 0 0 10px rgba(96,160,255,0.3), 0 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .selection-rect {
+          position: fixed;
+          border: 1px solid rgba(96,160,255,0.6);
+          background: rgba(96,160,255,0.08);
+          pointer-events: none;
+          z-index: 0;
+          display: none;
         }
 
         .node-header {
@@ -296,6 +301,7 @@ class TbNodeEditor extends HTMLElement {
         .context-menu-accordion.open .context-menu-accordion-body {
           display: block;
         }
+
       </style>
 
       <div class="canvas">
@@ -304,13 +310,16 @@ class TbNodeEditor extends HTMLElement {
         </div>
       </div>
       <div class="context-menu"></div>
+      <div class="selection-rect"></div>
     `;
 
     this._canvas = this.shadowRoot.querySelector(".canvas");
     this._inner = this.shadowRoot.querySelector(".canvas-inner");
     this._svg = this.shadowRoot.querySelector("svg.connections");
     this._contextMenu = this.shadowRoot.querySelector(".context-menu");
+    this._selectionRectEl = this.shadowRoot.querySelector(".selection-rect");
     this._zoom = 1;
+    this._highlightColor = "#ffaa20";
 
     this._setupPanning();
     this._setupZoom();
@@ -320,6 +329,12 @@ class TbNodeEditor extends HTMLElement {
   connectedCallback() {
     this._updateTransform();
     this._renderConnections();
+    this._paintLegend();
+  }
+
+  set highlightColor(color) {
+    this._highlightColor = color || "#ffaa20";
+    this._paintLegend();
   }
 
   // --- Public API ---
@@ -332,6 +347,7 @@ class TbNodeEditor extends HTMLElement {
     }));
     this._edges = (data.edges || []).map(e => ({ ...e }));
     this._nextNodeId = this._nodes.length;
+    this._selectedNodes.clear();
 
     // Clear existing nodes
     for (const el of this._inner.querySelectorAll(".node")) {
@@ -371,9 +387,30 @@ class TbNodeEditor extends HTMLElement {
   _setupPanning() {
     this._canvas.addEventListener("mousedown", (e) => {
       if (e.target !== this._canvas && e.target !== this._inner) return;
-      this._panning = true;
-      this._panStart = { x: e.clientX - this._pan.x, y: e.clientY - this._pan.y };
       this._hideContextMenu();
+
+      // Left or middle mouse button → pan
+      if (e.button === 0 || e.button === 1) {
+        e.preventDefault();
+        this._panning = true;
+        this._canvas.style.cursor = "grabbing";
+        this._panStart = { x: e.clientX - this._pan.x, y: e.clientY - this._pan.y };
+        return;
+      }
+
+      // Right mouse button → selection rectangle (or context menu if no drag)
+      if (e.button === 2) {
+        e.preventDefault();
+        this._selectionRect = { startX: e.clientX, startY: e.clientY, _shift: e.shiftKey };
+        this._selectionRectEl.style.left = e.clientX + "px";
+        this._selectionRectEl.style.top = e.clientY + "px";
+        this._selectionRectEl.style.width = "0";
+        this._selectionRectEl.style.height = "0";
+        this._selectionRectEl.style.display = "none";
+        if (!e.shiftKey) {
+          this._clearSelection();
+        }
+      }
     });
 
     this._canvas.addEventListener("mousemove", (e) => {
@@ -383,24 +420,164 @@ class TbNodeEditor extends HTMLElement {
         this._updateTransform();
       }
 
+      if (this._selectionRect) {
+        const sx = Math.min(this._selectionRect.startX, e.clientX);
+        const sy = Math.min(this._selectionRect.startY, e.clientY);
+        const w = Math.abs(e.clientX - this._selectionRect.startX);
+        const h = Math.abs(e.clientY - this._selectionRect.startY);
+        this._selectionRectEl.style.left = sx + "px";
+        this._selectionRectEl.style.top = sy + "px";
+        this._selectionRectEl.style.width = w + "px";
+        this._selectionRectEl.style.height = h + "px";
+        if (w > 4 || h > 4) {
+          this._selectionRectEl.style.display = "block";
+          this._canvas.style.cursor = "crosshair";
+          this._updateSelectionFromRect(sx, sy, w, h);
+        }
+      }
+
       if (this._connecting) {
         this._renderTempConnection(e);
       }
     });
 
-    this._canvas.addEventListener("mouseup", () => {
-      this._panning = false;
+    this._canvas.addEventListener("mouseup", (e) => {
+      if (this._panning) {
+        this._panning = false;
+        this._canvas.style.cursor = "";
+      }
+
+      if (this._selectionRect) {
+        const w = Math.abs(e.clientX - this._selectionRect.startX);
+        const h = Math.abs(e.clientY - this._selectionRect.startY);
+        // If it was just a click (no significant drag), show context menu
+        if (w < 5 && h < 5) {
+          if (!e.shiftKey) this._clearSelection();
+          this._showContextMenu(e.clientX, e.clientY);
+        }
+        this._selectionRect = null;
+        this._selectionRectEl.style.display = "none";
+        this._canvas.style.cursor = "";
+      }
+
       if (this._connecting) {
         this._cancelConnection();
       }
     });
+
+    // Prevent middle-click default (auto-scroll)
+    this._canvas.addEventListener("auxclick", (e) => {
+      if (e.button === 1) e.preventDefault();
+    });
+  }
+
+  _updateSelectionFromRect(rx, ry, rw, rh) {
+    for (const node of this._nodes) {
+      if (!node._el) continue;
+      const rect = node._el.getBoundingClientRect();
+      const overlaps =
+        rect.left < rx + rw &&
+        rect.right > rx &&
+        rect.top < ry + rh &&
+        rect.bottom > ry;
+
+      if (overlaps) {
+        this._selectedNodes.add(node.id);
+        node._el.classList.add("selected");
+      } else if (!this._selectionRect._shift) {
+        this._selectedNodes.delete(node.id);
+        node._el.classList.remove("selected");
+      }
+    }
+  }
+
+  _clearSelection() {
+    for (const nodeId of this._selectedNodes) {
+      const node = this._nodes.find(n => n.id === nodeId);
+      if (node?._el) node._el.classList.remove("selected");
+    }
+    this._selectedNodes.clear();
+  }
+
+  _paintLegend() {
+    const lines = [
+      ["Drag", "Pan"],
+      ["Right+Drag", "Select nodes"],
+      ["Shift+Right+Drag", "Add to selection"],
+      ["Shift+Click", "Toggle node"],
+      ["Scroll", "Zoom"],
+      ["Right-click", "Add node"],
+    ];
+
+    // Parse color and create a lighten helper (t: 0=original, 1=light, capped below white)
+    let hex = (this._highlightColor || "#ffaa20").replace("#", "");
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    const hr = parseInt(hex.substring(0, 2), 16);
+    const hg = parseInt(hex.substring(2, 4), 16);
+    const hb = parseInt(hex.substring(4, 6), 16);
+    const lighten = (t) => {
+      const r = Math.min(Math.round(hr + (200 - hr) * t), 200);
+      const g = Math.min(Math.round(hg + (200 - hg) * t), 200);
+      const b = Math.min(Math.round(hb + (200 - hb) * t), 200);
+      return `#${((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1)}`;
+    };
+
+    // Measure key widths using a temporary canvas context
+    const measure = document.createElement("canvas").getContext("2d");
+    measure.font = "10px monospace";
+    const lineH = 18;
+    const pad = 10;
+    const keyH = 14;
+    const keyPadX = 4;
+    const keyGap = 3;
+    const descGap = 6;
+
+    // Pre-compute layout for each line
+    const layout = lines.map(([keyStr, desc]) => {
+      const keys = keyStr.split("+");
+      const keyWidths = keys.map(k => measure.measureText(k).width + keyPadX * 2);
+      const totalKeysW = keyWidths.reduce((a, b) => a + b, 0) + (keys.length - 1) * keyGap;
+      return { keys, keyWidths, totalKeysW, desc };
+    });
+
+    const maxW = Math.max(...layout.map(l => l.totalKeysW + descGap + measure.measureText(" ··· " + l.desc).width)) + pad * 2;
+    const w = Math.ceil(maxW);
+    const h = lines.length * lineH + pad * 2;
+
+    let rects = "";
+    let texts = "";
+    for (let i = 0; i < layout.length; i++) {
+      const { keys, keyWidths, totalKeysW, desc } = layout[i];
+      const baseY = pad + i * lineH;
+      const textY = baseY + keyH - 3;
+      let kx = pad;
+      for (let j = 0; j < keys.length; j++) {
+        rects += `<rect x="${kx}" y="${baseY}" width="${keyWidths[j]}" height="${keyH}" rx="2" ry="2" fill="transparent" stroke="${lighten(0.4)}" stroke-width="0.5"/>`;
+        texts += `<text x="${kx + keyPadX}" y="${textY}" font-family="monospace" font-size="10" fill="${lighten(0.5)}">${keys[j]}</text>`;
+        kx += keyWidths[j] + keyGap;
+      }
+      const afterKeys = pad + totalKeysW;
+      texts += `<text x="${afterKeys}" y="${textY}" font-family="monospace" font-size="10"><tspan fill="${lighten(0.2)}"> ··· </tspan><tspan fill="${lighten(0.35)}">${desc}</tspan></text>`;
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${rects}${texts}</svg>`;
+    this._legendURI = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    this._legendW = w;
+    this._updateTransform();
   }
 
   _updateTransform() {
     this._inner.style.transform = `translate(${this._pan.x}px, ${this._pan.y}px) scale(${this._zoom})`;
-    // Move grid background with pan
-    this._canvas.style.backgroundPosition = `${this._pan.x}px ${this._pan.y}px`;
-    this._canvas.style.backgroundSize = `${20 * this._zoom}px ${20 * this._zoom}px`;
+    const gridSize = `${20 * this._zoom}px ${20 * this._zoom}px`;
+    if (this._legendURI) {
+      this._canvas.style.backgroundImage = `radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px), ${this._legendURI}`;
+      this._canvas.style.backgroundPosition = `${this._pan.x}px ${this._pan.y}px, left 8px bottom 8px`;
+      this._canvas.style.backgroundSize = `${gridSize}, ${this._legendW}px auto`;
+      this._canvas.style.backgroundRepeat = "repeat, no-repeat";
+    } else {
+      this._canvas.style.backgroundPosition = `${this._pan.x}px ${this._pan.y}px`;
+      this._canvas.style.backgroundSize = gridSize;
+    }
   }
 
   _recenter() {
@@ -442,12 +619,10 @@ class TbNodeEditor extends HTMLElement {
   _setupContextMenu() {
     document.addEventListener("click", () => this._hideContextMenu());
 
-    // Right-click on canvas background to show context menu
+    // Suppress native context menu on canvas – right-click is handled in mouseup
     this._canvas.addEventListener("contextmenu", (e) => {
-      // Only on canvas background, not on nodes
       if (e.target !== this._canvas && e.target !== this._inner) return;
       e.preventDefault();
-      this._showContextMenu(e.clientX, e.clientY);
     });
   }
 
@@ -611,28 +786,66 @@ class TbNodeEditor extends HTMLElement {
       ${portsHTML}
     `;
 
-    // Drag
+    // Drag (single or multi-selected)
     el.addEventListener("mousedown", (e) => {
-      if (e.target.classList.contains("port") || e.target.classList.contains("node-delete")) return;
+      if (e.button !== 0) return;
+      if (e.target.classList.contains("port")) return;
+      // Allow delete clicks only when not multi-selected
+      if (e.target.classList.contains("node-delete") && this._selectedNodes.size <= 1) return;
       e.stopPropagation();
-      this._draggingNode = node;
-      this._dragOffset = {
-        x: e.clientX - node.x * this._zoom - this._pan.x,
-        y: e.clientY - node.y * this._zoom - this._pan.y,
-      };
-      el.style.zIndex = "5";
 
-      const onMove = (e) => {
-        node.x = (e.clientX - this._dragOffset.x - this._pan.x) / this._zoom;
-        node.y = (e.clientY - this._dragOffset.y - this._pan.y) / this._zoom;
-        el.style.left = node.x + "px";
-        el.style.top = node.y + "px";
+      const isSelected = this._selectedNodes.has(node.id);
+      const multiSelected = this._selectedNodes.size > 1;
+
+      if (e.shiftKey) {
+        // Toggle selection
+        if (isSelected) {
+          this._selectedNodes.delete(node.id);
+          el.classList.remove("selected");
+        } else {
+          this._selectedNodes.add(node.id);
+          el.classList.add("selected");
+        }
+        return;
+      }
+
+      if (!isSelected) {
+        // Clicking an unselected node clears selection and selects just this one
+        this._clearSelection();
+      }
+
+      // Determine which nodes to drag
+      const dragging = isSelected && multiSelected
+        ? this._nodes.filter(n => this._selectedNodes.has(n.id))
+        : [node];
+
+      // Compute offset for each dragged node
+      const offsets = new Map();
+      for (const n of dragging) {
+        offsets.set(n.id, {
+          x: e.clientX - n.x * this._zoom - this._pan.x,
+          y: e.clientY - n.y * this._zoom - this._pan.y,
+        });
+        if (n._el) n._el.style.zIndex = "5";
+      }
+
+      const onMove = (ev) => {
+        for (const n of dragging) {
+          const off = offsets.get(n.id);
+          n.x = (ev.clientX - off.x - this._pan.x) / this._zoom;
+          n.y = (ev.clientY - off.y - this._pan.y) / this._zoom;
+          if (n._el) {
+            n._el.style.left = n.x + "px";
+            n._el.style.top = n.y + "px";
+          }
+        }
         this._renderConnections();
       };
 
       const onUp = () => {
-        this._draggingNode = null;
-        el.style.zIndex = "2";
+        for (const n of dragging) {
+          if (n._el) n._el.style.zIndex = "2";
+        }
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
       };
@@ -685,9 +898,10 @@ class TbNodeEditor extends HTMLElement {
       });
     }
 
-    // Port connections
+    // Port connections (disabled when multi-selected)
     for (const port of el.querySelectorAll(".port")) {
       port.addEventListener("mousedown", (e) => {
+        if (this._selectedNodes.size > 1) return; // no port interaction when multi-selected
         e.stopPropagation();
         const portType = port.dataset.portType;
         const portIndex = parseInt(port.dataset.portIndex);
@@ -706,6 +920,7 @@ class TbNodeEditor extends HTMLElement {
       });
 
       port.addEventListener("mouseup", (e) => {
+        if (this._selectedNodes.size > 1) return;
         e.stopPropagation();
         if (this._connecting && port.dataset.portType === "input") {
           // Complete connection

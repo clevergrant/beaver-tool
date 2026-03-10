@@ -1,12 +1,12 @@
 /**
  * <tb-dial> — Sun/Moon dial surface component.
  *
- * A rotating disc showing day (sun) and night (moon) halves.
+ * A half-circle gauge showing day (sun) and night (moon) halves.
  * The disc rotates based on the 'on' attribute (on = day, off = night).
  *
  * Attributes:
  *   on     - Boolean, true = daytime (sun), false = nighttime (moon)
- *   size   - Diameter in px (default: 80)
+ *   size   - Width in px (default: 80); height is half the width
  */
 class TbDial extends TbSurfaceComponent {
   static get observedAttributes() {
@@ -18,7 +18,7 @@ class TbDial extends TbSurfaceComponent {
   }
 
   static get sizeConstraints() {
-    return { minW: 2, minH: 2, maxW: null, maxH: null };
+    return { minW: 4, minH: 2, maxW: null, maxH: null };
   }
 
   constructor() {
@@ -33,20 +33,19 @@ class TbDial extends TbSurfaceComponent {
 
         .dial-frame {
           position: relative;
-          border-radius: 50%;
-          background: #4a4840;
+          border-radius: 999px 999px 0 0;
+          background: #3a3830;
           box-shadow:
-            0 2px 8px rgba(0,0,0,0.5),
-            inset 0 1px 0 rgba(255,255,255,0.1);
+            inset 0 2px 8px rgba(0,0,0,0.7),
+            inset 0 1px 2px rgba(0,0,0,0.5),
+            0 1px 0 rgba(255,255,255,0.08);
           overflow: hidden;
         }
 
         .dial-disc {
-          width: 100%;
-          height: 100%;
+          position: absolute;
           border-radius: 50%;
           transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
         }
 
         .dial-half {
@@ -61,7 +60,7 @@ class TbDial extends TbSurfaceComponent {
 
         .dial-day {
           top: 0;
-          background: linear-gradient(180deg, #ffd080 0%, #ffaa40 100%);
+          background: linear-gradient(180deg, #87ceeb 0%, #4a90d9 100%);
           border-radius: 50% 50% 0 0;
         }
 
@@ -76,16 +75,23 @@ class TbDial extends TbSurfaceComponent {
           line-height: 1;
         }
 
+        .dial-day .dial-icon {
+          color: #f5c518;
+        }
+
         .dial-center {
           position: absolute;
-          top: 50%;
+          bottom: 0;
           left: 50%;
-          transform: translate(-50%, -50%);
+          transform: translate(-50%, 50%);
           width: 12%;
-          height: 12%;
+          height: 0;
+          padding-bottom: 12%;
           border-radius: 50%;
           background: radial-gradient(circle, #aaa89e, #6a6860);
-          box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+          box-shadow:
+            inset 0 1px 2px rgba(0,0,0,0.4),
+            0 -1px 0 rgba(255,255,255,0.1);
           z-index: 2;
         }
 
@@ -98,8 +104,9 @@ class TbDial extends TbSurfaceComponent {
           height: 0;
           border-left: 4px solid transparent;
           border-right: 4px solid transparent;
-          border-top: 6px solid #ffaa20;
+          border-top: 6px solid #ff3030;
           z-index: 3;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
         }
       </style>
 
@@ -132,10 +139,17 @@ class TbDial extends TbSurfaceComponent {
 
   _render() {
     const size = parseInt(this.getAttribute("size")) || 80;
+    const halfH = size / 2;
     const isDay = this.hasAttribute("on");
 
     this._frame.style.width = size + "px";
-    this._frame.style.height = size + "px";
+    this._frame.style.height = halfH + "px";
+
+    // Full circle disc, positioned so center is at bottom of frame
+    this._disc.style.width = size + "px";
+    this._disc.style.height = size + "px";
+    this._disc.style.left = "0";
+    this._disc.style.top = "0";
 
     const iconSize = Math.max(12, size * 0.25);
     for (const icon of this.shadowRoot.querySelectorAll(".dial-icon")) {

@@ -199,11 +199,31 @@ class TbComponent extends HTMLElement {
     // Don't add if already exists
     if (this._circuitryData.nodes.find(n => n.id === nodeId)) return;
 
+    // Place above the rightmost existing node (accounting for position + width)
+    let spawnX = 100;
+    let spawnY = 100;
+    const NODE_WIDTH = 140; // approximate rendered node width
+    if (this._circuitryData.nodes.length > 0) {
+      let rightmost = null;
+      let maxRight = -Infinity;
+      for (const n of this._circuitryData.nodes) {
+        const right = (n.x || 0) + NODE_WIDTH;
+        if (right > maxRight) {
+          maxRight = right;
+          rightmost = n;
+        }
+      }
+      if (rightmost) {
+        spawnX = rightmost.x;
+        spawnY = (rightmost.y || 0) - 120;
+      }
+    }
+
     const nodeData = {
       id: nodeId,
       type: type,
-      x: 100 + this._circuitryData.nodes.length * 180,
-      y: 100,
+      x: spawnX,
+      y: spawnY,
       config: {
         surfaceId: sid,
         ports: ports,
@@ -449,6 +469,11 @@ class TbComponent extends HTMLElement {
     const circuitryBtn = overlay.querySelector(".mode-circuitry");
     const closeBtn = overlay.querySelector(".mode-close");
     const nodeEditor = overlay.querySelector("tb-node-editor");
+
+    // Set legend color from component color
+    if (nodeEditor) {
+      nodeEditor.highlightColor = color;
+    }
 
     // Load circuitry data into node editor
     if (nodeEditor && this._circuitryData) {
@@ -711,6 +736,9 @@ class TbComponent extends HTMLElement {
         // Update highlight color for editor UI
         const newHighlight = TbComponent.computeHighlight(newColor);
         overlay.style.setProperty("--comp-hl", newHighlight);
+
+        // Update node editor legend colors
+        if (nodeEditor) nodeEditor.highlightColor = newColor;
 
         // Dispatch event for config save
         this.dispatchEvent(new CustomEvent("component-config-change", {
@@ -1053,6 +1081,15 @@ class TbComponent extends HTMLElement {
       document.removeEventListener("mouseup", onUp);
       if (this._surfaceGrid) {
         this._surfaceGrid.updateComponent(surfaceId, { x: item.x, y: item.y });
+        // Restore editor-mode styles that updateComponent overwrites
+        const el = this._surfaceGrid.getComponent(surfaceId)?.el;
+        if (el) {
+          el.style.position = "";
+          el.style.left = "";
+          el.style.top = "";
+          el.style.width = "100%";
+          el.style.height = "100%";
+        }
       }
       this._emitSurfaceChange(compId);
     };
@@ -1116,6 +1153,12 @@ class TbComponent extends HTMLElement {
       wrapper.classList.remove("resizing");
       if (this._surfaceGrid) {
         this._surfaceGrid.updateComponent(surfaceId, { w: item.w, h: item.h });
+        // updateComponent sets inline pixel sizes on the element, which would
+        // override the CSS "100%" rule and break continuous re-centering on the
+        // next resize drag. Restore percentage sizing so the element keeps
+        // stretching to fill its editor wrapper.
+        const el = this._surfaceGrid.getComponent(surfaceId)?.el;
+        if (el) { el.style.width = "100%"; el.style.height = "100%"; }
       }
       this._emitSurfaceChange(compId);
     };
