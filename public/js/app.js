@@ -10,6 +10,9 @@ let ws;
 let grid;
 let deviceState = {};
 
+/** Global editor state — single source of truth for which view is active. */
+window.editorState = { activeComponentId: null, mode: "dashboard" };
+
 /** In-memory component data keyed by id, loaded from Store. */
 const componentData = new Map();
 

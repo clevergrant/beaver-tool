@@ -22,7 +22,7 @@ class TbToggle extends TbSurfaceComponent {
   }
 
   static get sizeConstraints() {
-    return { minW: 1, minH: 2, maxW: null, maxH: null };
+    return { minW: 1, minH: 2, maxW: null, maxH: null, defaultW: 2, defaultH: 3 };
   }
 
   constructor() {

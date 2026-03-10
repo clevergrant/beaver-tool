@@ -34,6 +34,7 @@ class Grid {
     this.bare = !!opts.bare;
     this.components = new Map(); // id -> { el, x, y, w, h, minW, minH, config }
     this.editing = false;
+    this.locked = !!opts.locked; // When true, all drag/resize interactions are disabled
 
     // Drag state
     this._dragTarget = null;
@@ -187,11 +188,11 @@ class Grid {
   setEditing(editing) {
     this.editing = editing;
     this.viewport.classList.toggle("editing", editing);
+    // Clear any inline cursor styles left from the previous mode
+    for (const [, comp] of this.components) {
+      comp.el.style.cursor = "";
+    }
     if (!editing) {
-      // Clear any inline cursor styles left from drag/resize hover
-      for (const [, comp] of this.components) {
-        comp.el.style.cursor = "";
-      }
       this._saveLayout();
     }
   }
@@ -223,104 +224,92 @@ class Grid {
 
   /** Setup drag and resize on a component element */
   _setupDrag(el, id) {
-    // Cursor feedback on hover in edit mode
+    // Cursor feedback on hover
     el.addEventListener("mousemove", (e) => {
-      if (!this.editing) return;
+      if (this.locked || window.editorState?.activeComponentId) { el.style.cursor = ""; return; }
+      if (this._dragTarget || this._resizeTarget || e.buttons & 1) return;
       const comp = this.components.get(id);
       if (!comp) return;
 
-      if (!comp.resizable) {
-        el.style.cursor = "move";
-        return;
-      }
+      if (this.editing) {
+        // Editing mode: resize cursors only (no moving)
+        if (!comp.resizable) { el.style.cursor = ""; return; }
 
-      // Per-axis resizability: only allow if there's room between min and max
-      const canResizeH = comp.maxW === null || comp.maxW > comp.minW;
-      const canResizeV = comp.maxH === null || comp.maxH > comp.minH;
+        const canResizeH = comp.maxW === null || comp.maxW > comp.minW;
+        const canResizeV = comp.maxH === null || comp.maxH > comp.minH;
+        if (!canResizeH && !canResizeV) { el.style.cursor = ""; return; }
 
-      if (!canResizeH && !canResizeV) {
-        el.style.cursor = "move";
-        return;
-      }
+        const rect = el.getBoundingClientRect();
+        const edgeThreshold = 8;
+        const nearRight = canResizeH && e.clientX > rect.right - edgeThreshold;
+        const nearBottom = canResizeV && e.clientY > rect.bottom - edgeThreshold;
 
-      const rect = el.getBoundingClientRect();
-      const edgeThreshold = 8;
-      const nearRight = canResizeH && e.clientX > rect.right - edgeThreshold;
-      const nearBottom = canResizeV && e.clientY > rect.bottom - edgeThreshold;
-
-      if (comp.aspectRatio) {
-        // Aspect-ratio-locked: only corner resize
-        if (nearRight && nearBottom) {
+        if (comp.aspectRatio) {
+          el.style.cursor = (nearRight && nearBottom) ? "nwse-resize" : "";
+        } else if (nearRight && nearBottom) {
           el.style.cursor = "nwse-resize";
+        } else if (nearRight) {
+          el.style.cursor = "ew-resize";
+        } else if (nearBottom) {
+          el.style.cursor = "ns-resize";
         } else {
-          el.style.cursor = "move";
+          el.style.cursor = "";
         }
-      } else if (nearRight && nearBottom) {
-        el.style.cursor = "nwse-resize";
-      } else if (nearRight) {
-        el.style.cursor = "ew-resize";
-      } else if (nearBottom) {
-        el.style.cursor = "ns-resize";
       } else {
-        el.style.cursor = "move";
+        // Default mode: always grab cursor (drag to move)
+        el.style.cursor = "grab";
       }
     });
 
     el.addEventListener("mousedown", (e) => {
-      if (!this.editing) return;
-
+      if (this.locked || window.editorState?.activeComponentId) return;
       const comp = this.components.get(id);
       if (!comp) return;
 
-      // Check if near edge for resize (8px threshold)
-      const rect = el.getBoundingClientRect();
-      const edgeThreshold = 8;
-      let nearRight = e.clientX > rect.right - edgeThreshold;
-      let nearBottom = e.clientY > rect.bottom - edgeThreshold;
+      if (this.editing) {
+        // Editing mode: resize only, no dragging
+        if (!comp.resizable) return;
 
-      // Non-resizable components: never enter resize mode
-      if (!comp.resizable) {
-        nearRight = false;
-        nearBottom = false;
-      }
+        const rect = el.getBoundingClientRect();
+        const edgeThreshold = 8;
+        let nearRight = e.clientX > rect.right - edgeThreshold;
+        let nearBottom = e.clientY > rect.bottom - edgeThreshold;
 
-      // Per-axis: block resize on axes with no room between min and max
-      const canResizeH = comp.maxW === null || comp.maxW > comp.minW;
-      const canResizeV = comp.maxH === null || comp.maxH > comp.minH;
-      if (!canResizeH) nearRight = false;
-      if (!canResizeV) nearBottom = false;
+        const canResizeH = comp.maxW === null || comp.maxW > comp.minW;
+        const canResizeV = comp.maxH === null || comp.maxH > comp.minH;
+        if (!canResizeH) nearRight = false;
+        if (!canResizeV) nearBottom = false;
 
-      // Aspect-ratio-locked: only allow corner (both edges) resize
-      if (comp.aspectRatio && !(nearRight && nearBottom)) {
-        nearRight = false;
-        nearBottom = false;
-      }
+        if (comp.aspectRatio && !(nearRight && nearBottom)) {
+          nearRight = false;
+          nearBottom = false;
+        }
 
-      if (nearRight || nearBottom) {
-        // Resize
-        e.preventDefault();
-        e.stopPropagation();
-        this._resizeTarget = id;
-        this._resizeEdge = { right: nearRight, bottom: nearBottom };
-        this._resizeStart = {
-          mouseX: e.clientX,
-          mouseY: e.clientY,
-          w: this.components.get(id).w,
-          h: this.components.get(id).h,
-        };
-        document.addEventListener("mousemove", this._onMouseMove);
-        document.addEventListener("mouseup", this._onMouseUp);
+        if (nearRight || nearBottom) {
+          e.preventDefault();
+          e.stopPropagation();
+          this._resizeTarget = id;
+          this._resizeEdge = { right: nearRight, bottom: nearBottom };
+          this._resizeStart = {
+            mouseX: e.clientX,
+            mouseY: e.clientY,
+            w: comp.w,
+            h: comp.h,
+          };
+          document.addEventListener("mousemove", this._onMouseMove);
+          document.addEventListener("mouseup", this._onMouseUp);
+        }
       } else {
-        // Drag
+        // Default mode: drag to move (surface elements are not interactive here)
         e.preventDefault();
         e.stopPropagation();
         this._dragTarget = id;
-        const comp = this.components.get(id);
         this._dragOffset = {
           x: e.clientX - comp.x * CELL_SIZE,
           y: e.clientY - comp.y * CELL_SIZE,
         };
-        el.style.zIndex = "10";
+        el.style.zIndex = "100";
+        el.style.cursor = "grabbing";
         document.addEventListener("mousemove", this._onMouseMove);
         document.addEventListener("mouseup", this._onMouseUp);
       }
@@ -365,7 +354,10 @@ class Grid {
   _onMouseUp() {
     if (this._dragTarget) {
       const comp = this.components.get(this._dragTarget);
-      if (comp) comp.el.style.zIndex = "1";
+      if (comp) {
+        comp.el.style.zIndex = "";
+        comp.el.style.cursor = "grab";
+      }
       this._dragTarget = null;
     }
     this._resizeTarget = null;

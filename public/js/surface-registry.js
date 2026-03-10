@@ -62,3 +62,32 @@ SurfaceComponents.register({
     };
   },
 });
+
+// --- Alert Lamp ---
+SurfaceComponents.register({
+  type: "alert-lamp",
+  name: "Alert Lamp",
+  icon: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" fill="#3a2020" stroke="#555" stroke-width="1.2"/><circle cx="8" cy="8" r="3.5" fill="#ff3030" opacity="0.7"/><circle cx="8" cy="8" r="1.5" fill="#ff5050"/></svg>',
+  category: "indicator",
+  width: 2,
+  height: 2,
+  resizable: false,
+  factory(id, gridX, gridY) {
+    return {
+      id,
+      name: "Alert Lamp",
+      x: gridX,
+      y: gridY,
+      minWidth: 2,
+      minHeight: 2,
+      color: "#1a1a18",
+      surface: [{
+        type: "alert",
+        x: 0, y: 0,
+        width: 2, height: 2,
+        props: { color: "red", speed: "1200" },
+      }],
+      circuitry: { nodes: [], edges: [] },
+    };
+  },
+});

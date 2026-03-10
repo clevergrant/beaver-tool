@@ -140,7 +140,7 @@
   function initContextMenu({ getConfig, saveConfig, buildComponents, gridViewport }) {
     const gridContainer = gridViewport.parentElement;
 
-    // Dismiss on any click
+    // Dismiss on any left-click outside the menu
     document.addEventListener("click", dismiss);
 
     // Listen on the container (scroll wrapper) — more reliable than viewport
@@ -152,9 +152,8 @@
           dismiss();
           return;
         }
-        // Don't show if a component editor is open
-        if (box.querySelector("tb-component")?.classList.contains("editing") ||
-            box.classList.contains("editing")) {
+        // Don't show if any component editor is open
+        if (window.editorState?.activeComponentId) {
           dismiss();
           return;
         }

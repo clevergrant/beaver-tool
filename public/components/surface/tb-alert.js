@@ -1,19 +1,18 @@
 /**
- * <tb-alert> — Blinking LED alert surface component.
+ * <tb-alert> — Alert lamp surface component.
  *
- * A large LED that blinks when triggered, with configurable blink modes.
+ * A 2x2 flashing lamp that activates when triggered.
+ * Features a dome housing with a pulsing glow effect.
  *
  * Attributes:
  *   on        - Boolean, whether alert is triggered
- *   color     - LED color when triggered (default: "red")
- *   size      - LED diameter in px (default: 24)
- *   mode      - Blink mode: "sine", "square", "sawtooth" (default: "sine")
- *   speed     - Blink speed in ms per cycle (default: 1000)
+ *   color     - Lamp color: "red", "amber", "green", "blue" (default: "red")
+ *   speed     - Flash speed in ms per cycle (default: 800)
  *   label     - Optional text label
  */
 class TbAlert extends TbSurfaceComponent {
   static get observedAttributes() {
-    return ["on", "color", "size", "mode", "speed", "label"];
+    return ["on", "color", "speed", "label"];
   }
 
   static get circuitryPorts() {
@@ -21,7 +20,7 @@ class TbAlert extends TbSurfaceComponent {
   }
 
   static get sizeConstraints() {
-    return { minW: 1, minH: 1, maxW: null, maxH: null };
+    return { minW: 2, minH: 2, maxW: 2, maxH: 2 };
   }
 
   constructor() {
@@ -33,35 +32,84 @@ class TbAlert extends TbSurfaceComponent {
     this.shadowRoot.innerHTML = `
       <style>
         :host {
-          display: grid;
-          place-items: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          overflow: visible;
         }
 
-        .alert-led {
+        .lamp-housing {
+          position: relative;
+          width: 85%;
+          aspect-ratio: 1;
+          max-width: 85%;
+          max-height: 85%;
           border-radius: 50%;
-          transition: background 0.1s;
+          background: radial-gradient(circle at 40% 35%, #4a4a48, #2a2a28);
+          border: 2px solid #555;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+          overflow: hidden;
+          flex-shrink: 0;
         }
+
+        .lamp-dome {
+          position: absolute;
+          inset: 10%;
+          border-radius: 50%;
+          background: radial-gradient(circle at 40% 35%, #5a3030, #2a1515);
+          border: 1px solid rgba(255,255,255,0.06);
+          transition: background 0.05s;
+        }
+
+        /* Mounting bolts */
+        .bolt {
+          position: absolute;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 35% 35%, #888, #555);
+          box-shadow: inset 0 0.5px 1px rgba(255,255,255,0.15);
+        }
+        .bolt-tl { top: 2px; left: 2px; }
+        .bolt-tr { top: 2px; right: 2px; }
+        .bolt-bl { bottom: 2px; left: 2px; }
+        .bolt-br { bottom: 2px; right: 2px; }
 
         .alert-label {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          text-align: center;
           font-family: 'Share Tech Mono', monospace;
-          font-size: 0.5rem;
+          font-size: 0.45rem;
           color: #e8e4d4;
-          letter-spacing: 0.1em;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
+          line-height: 1;
         }
       </style>
-      <div class="alert-led"></div>
+      <div class="lamp-housing">
+        <span class="bolt bolt-tl"></span>
+        <span class="bolt bolt-tr"></span>
+        <span class="bolt bolt-bl"></span>
+        <span class="bolt bolt-br"></span>
+        <div class="lamp-dome"></div>
+      </div>
       <span class="alert-label"></span>
     `;
 
-    this._led = this.shadowRoot.querySelector(".alert-led");
+    this._housing = this.shadowRoot.querySelector(".lamp-housing");
+    this._dome = this.shadowRoot.querySelector(".lamp-dome");
     this._labelEl = this.shadowRoot.querySelector(".alert-label");
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._render();
-    this._startAnimation();
+    if (this.hasAttribute("on")) this._startAnimation();
   }
 
   disconnectedCallback() {
@@ -75,6 +123,7 @@ class TbAlert extends TbSurfaceComponent {
       this._startAnimation();
     } else {
       this._stopAnimation();
+      this._setOff();
     }
   }
 
@@ -84,30 +133,31 @@ class TbAlert extends TbSurfaceComponent {
     else this.removeAttribute("on");
   }
 
-  _render() {
-    const size = parseInt(this.getAttribute("size")) || 24;
-    const label = this.getAttribute("label") || "";
+  _getColor() {
+    const colorName = this.getAttribute("color") || "red";
+    const colors = {
+      red:   { on: "#ff3030", dim: "#5a3030", glow: "rgba(255,48,48," },
+      amber: { on: "#ffaa20", dim: "#5a4020", glow: "rgba(255,170,32," },
+      green: { on: "#30ff60", dim: "#305a30", glow: "rgba(48,255,96," },
+      blue:  { on: "#4080ff", dim: "#30305a", glow: "rgba(64,128,255," },
+    };
+    return colors[colorName] || colors.red;
+  }
 
-    this._led.style.width = size + "px";
-    this._led.style.height = size + "px";
+  _render() {
+    const label = this.getAttribute("label") || "";
     this._labelEl.textContent = label;
     this._labelEl.style.display = label ? "" : "none";
 
     if (!this.hasAttribute("on")) {
-      this._led.style.background = "#3a2020";
-      this._led.style.boxShadow = "inset 0 1px 3px rgba(0,0,0,0.4)";
+      this._setOff();
     }
   }
 
-  _getColor() {
-    const colorName = this.getAttribute("color") || "red";
-    const colors = {
-      red: { on: "#ff3030", glow: "rgba(255,48,48,0.6)" },
-      amber: { on: "#ffaa20", glow: "rgba(255,170,32,0.6)" },
-      green: { on: "#30ff60", glow: "rgba(48,255,96,0.6)" },
-      blue: { on: "#4080ff", glow: "rgba(64,128,255,0.6)" },
-    };
-    return colors[colorName] || { on: colorName, glow: colorName + "99" };
+  _setOff() {
+    const c = this._getColor();
+    this._dome.style.background = `radial-gradient(circle at 40% 35%, ${c.dim}, #2a1515)`;
+    this._housing.style.boxShadow = "inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3)";
   }
 
   _startAnimation() {
@@ -118,37 +168,29 @@ class TbAlert extends TbSurfaceComponent {
     const animate = (now) => {
       if (!this.hasAttribute("on")) {
         this._stopAnimation();
+        this._setOff();
         return;
       }
 
-      const speed = parseInt(this.getAttribute("speed")) || 1000;
-      const mode = this.getAttribute("mode") || "sine";
+      const speed = parseInt(this.getAttribute("speed")) || 800;
       const elapsed = now - this._startTime;
-      const t = (elapsed % speed) / speed; // 0..1
+      const t = (elapsed % speed) / speed;
+      // Sharp on/off flash with a sine envelope for smooth brightness
+      const brightness = t < 0.5
+        ? (Math.sin(t / 0.5 * Math.PI - Math.PI / 2) + 1) / 2
+        : 0;
 
-      let brightness;
-      switch (mode) {
-        case "square":
-          brightness = t < 0.5 ? 1 : 0;
-          break;
-        case "sawtooth":
-          brightness = t;
-          break;
-        case "sine":
-        default:
-          brightness = (Math.sin(t * Math.PI * 2 - Math.PI / 2) + 1) / 2;
-          break;
-      }
+      const c = this._getColor();
+      const glowSize = Math.round(12 * brightness);
 
-      const color = this._getColor();
-      const size = parseInt(this.getAttribute("size")) || 24;
-      const glowSize = Math.round(size * 0.5 * brightness);
+      this._dome.style.background = brightness > 0.05
+        ? `radial-gradient(circle at 40% 35%, ${c.on}, ${c.glow}0.6))`
+        : `radial-gradient(circle at 40% 35%, ${c.dim}, #2a1515)`;
+      this._dome.style.opacity = brightness > 0.05 ? (0.4 + brightness * 0.6) : 1;
 
-      this._led.style.background = brightness > 0.1 ? color.on : "#3a2020";
-      this._led.style.opacity = 0.3 + brightness * 0.7;
-      this._led.style.boxShadow = brightness > 0.1
-        ? `inset 0 1px 3px rgba(0,0,0,0.2), 0 0 ${glowSize}px ${color.glow}`
-        : "inset 0 1px 3px rgba(0,0,0,0.4)";
+      this._housing.style.boxShadow = brightness > 0.05
+        ? `inset 0 2px 4px rgba(0,0,0,0.5), 0 0 ${glowSize}px ${c.glow}${(brightness * 0.6).toFixed(2)})`
+        : "inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3)";
 
       this._animFrame = requestAnimationFrame(animate);
     };
