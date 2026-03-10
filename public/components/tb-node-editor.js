@@ -212,6 +212,36 @@ class TbNodeEditor extends HTMLElement {
           cursor: default;
         }
 
+        .node-select {
+          background: #1a1a18;
+          border: 1px solid #4a4a44;
+          border-radius: 2px;
+          color: #e0ddd0;
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.6rem;
+          padding: 2px 4px;
+          outline: none;
+          width: 100%;
+        }
+
+        .node-select:focus {
+          border-color: #60a0ff;
+        }
+
+        .node-param-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 4px;
+        }
+
+        .node-param-label {
+          font-size: 0.5rem;
+          color: #8a8a7a;
+          white-space: nowrap;
+          min-width: 28px;
+        }
+
         .label-resolved {
           font-size: 0.5rem;
           color: #60a0ff;
@@ -898,6 +928,35 @@ class TbNodeEditor extends HTMLElement {
       });
     }
 
+    // Toggle parameter selects
+    const toggleOrientation = el.querySelector(".toggle-orientation");
+    if (toggleOrientation) {
+      toggleOrientation.addEventListener("mousedown", (e) => e.stopPropagation());
+      toggleOrientation.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        node.config.orientation = toggleOrientation.value;
+        this._emitToggleConfigChange(node);
+      });
+    }
+    const toggleStyle = el.querySelector(".toggle-style");
+    if (toggleStyle) {
+      toggleStyle.addEventListener("mousedown", (e) => e.stopPropagation());
+      toggleStyle.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        node.config.style = toggleStyle.value;
+        this._emitToggleConfigChange(node);
+      });
+    }
+    const toggleSize = el.querySelector(".toggle-size");
+    if (toggleSize) {
+      toggleSize.addEventListener("mousedown", (e) => e.stopPropagation());
+      toggleSize.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        node.config.size = toggleSize.value;
+        this._emitToggleConfigChange(node);
+      });
+    }
+
     // Port connections (disabled when multi-selected)
     for (const port of el.querySelectorAll(".port")) {
       port.addEventListener("mousedown", (e) => {
@@ -1045,6 +1104,19 @@ class TbNodeEditor extends HTMLElement {
     this._renderNode(node);
   }
 
+  /** Emit toggle config change so the parent component can update constraints live */
+  _emitToggleConfigChange(node) {
+    this.dispatchEvent(new CustomEvent("toggle-config-change", {
+      bubbles: true,
+      detail: {
+        surfaceId: node.config?.surfaceId,
+        orientation: node.config?.orientation || "vertical",
+        style: node.config?.style || "squared",
+        size: node.config?.size || "medium",
+      },
+    }));
+  }
+
   /** Public API: remove a node and its edges by ID */
   removeNode(nodeId) {
     this._deleteNode(nodeId);
@@ -1114,6 +1186,36 @@ class TbNodeEditor extends HTMLElement {
           <input type="checkbox" class="label-override-toggle" title="Override device name" ${overwrite ? "checked" : ""} />
         </div>
         ${overwrite ? "" : resolvedHTML}`;
+    }
+    if (node.type === "surface-toggle") {
+      const label = node.config?.label || node.config?.surfaceId || "—";
+      const orientation = node.config?.orientation || "vertical";
+      const style = node.config?.style || "squared";
+      const size = node.config?.size || "medium";
+      return `
+        <span style="color:#60a0ff;">${label}</span>
+        <div class="node-param-row">
+          <span class="node-param-label">dir</span>
+          <select class="node-select toggle-orientation">
+            <option value="vertical"${orientation === "vertical" ? " selected" : ""}>vertical</option>
+            <option value="horizontal"${orientation === "horizontal" ? " selected" : ""}>horizontal</option>
+          </select>
+        </div>
+        <div class="node-param-row">
+          <span class="node-param-label">style</span>
+          <select class="node-select toggle-style">
+            <option value="squared"${style === "squared" ? " selected" : ""}>squared</option>
+            <option value="rounded"${style === "rounded" ? " selected" : ""}>rounded</option>
+          </select>
+        </div>
+        <div class="node-param-row">
+          <span class="node-param-label">size</span>
+          <select class="node-select toggle-size">
+            <option value="small"${size === "small" ? " selected" : ""}>small</option>
+            <option value="medium"${size === "medium" ? " selected" : ""}>medium</option>
+            <option value="large"${size === "large" ? " selected" : ""}>large</option>
+          </select>
+        </div>`;
     }
     if (node.type.startsWith("surface-")) {
       const label = node.config?.label || node.config?.surfaceId || "—";

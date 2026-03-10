@@ -20,6 +20,22 @@ class TbComponent extends HTMLElement {
     return ["name", "color", "component-id"];
   }
 
+  /** Compute min grid constraints for a toggle given orientation + size */
+  static _toggleConstraints(orientation, size) {
+    const isHoriz = orientation === "horizontal";
+    // vertical: small=1x2, medium=2x3, large=3x3
+    // horizontal: swap W↔H
+    const table = {
+      small:  { w: 1, h: 2 },
+      medium: { w: 2, h: 3 },
+      large:  { w: 3, h: 3 },
+    };
+    const entry = table[size] || table.medium;
+    return isHoriz
+      ? { minW: entry.h, minH: entry.w }
+      : { minW: entry.w, minH: entry.h };
+  }
+
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
@@ -80,6 +96,9 @@ class TbComponent extends HTMLElement {
   connectedCallback() {
     this._render();
     this._initSurfaceGrid();
+    // Apply circuitry node parameters to surface elements on first load
+    this._syncLabelConfig();
+    this._syncToggleConfig();
   }
 
   attributeChangedCallback() {
@@ -219,20 +238,37 @@ class TbComponent extends HTMLElement {
       }
     }
 
+    const nodeConfig = {
+      surfaceId: sid,
+      ports: ports,
+      surfaceManaged: true,
+      label: surfaceComponent.getAttribute("label") || sid,
+    };
+
+    // Set default toggle config so constraints are applied correctly
+    if (type === "surface-toggle") {
+      nodeConfig.size = "medium";
+      nodeConfig.orientation = "vertical";
+      nodeConfig.style = "squared";
+    }
+
     const nodeData = {
       id: nodeId,
       type: type,
       x: spawnX,
       y: spawnY,
-      config: {
-        surfaceId: sid,
-        ports: ports,
-        surfaceManaged: true,
-        label: surfaceComponent.getAttribute("label") || sid,
-      },
+      config: nodeConfig,
     };
 
     this._circuitryData.nodes.push(nodeData);
+
+    // Apply toggle constraints immediately after registration
+    if (type === "surface-toggle" && this._surfaceGrid) {
+      const { minW, minH } = TbComponent._toggleConstraints(
+        nodeConfig.orientation, nodeConfig.size
+      );
+      this._surfaceGrid.updateConstraints(sid, { minW, minH });
+    }
 
     // If the editor overlay is open, also add to the live node editor
     if (this._overlay) {
@@ -309,6 +345,48 @@ class TbComponent extends HTMLElement {
           || sourceNode?.config?.surfaceId
           || "";
         if (deviceName) surfaceEl.deviceText = deviceName;
+      }
+    }
+  }
+
+  _syncToggleConfig() {
+    const { nodes } = this._circuitryData;
+    if (!nodes?.length) return;
+
+    for (const node of nodes) {
+      if (node.type !== "surface-toggle" || !node.config?.surfaceManaged) continue;
+      const sid = node.config.surfaceId;
+      let surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
+      if (!surfaceEl && this._overlay) {
+        surfaceEl = this._overlay.querySelector(`[surface-id="${sid}"]`);
+      }
+      if (!surfaceEl) continue;
+
+      const orientation = node.config.orientation || "vertical";
+      if (orientation !== "vertical") {
+        surfaceEl.setAttribute("orientation", orientation);
+      } else {
+        surfaceEl.removeAttribute("orientation");
+      }
+
+      const size = node.config.size || "medium";
+      if (size !== "medium") {
+        surfaceEl.setAttribute("size", size);
+      } else {
+        surfaceEl.removeAttribute("size");
+      }
+
+      // Update grid constraints based on orientation and size
+      if (this._surfaceGrid) {
+        const { minW, minH } = TbComponent._toggleConstraints(orientation, size);
+        this._surfaceGrid.updateConstraints(sid, { minW, minH });
+      }
+
+      const switchStyle = node.config.style || "squared";
+      if (switchStyle !== "squared") {
+        surfaceEl.setAttribute("switch-style", switchStyle);
+      } else {
+        surfaceEl.removeAttribute("switch-style");
       }
     }
   }
@@ -483,6 +561,48 @@ class TbComponent extends HTMLElement {
     // Pass live device state so node editor can list real buildings
     if (nodeEditor && typeof deviceState !== "undefined") {
       nodeEditor.setDevices(deviceState);
+    }
+
+    // Live-update surface element when toggle config changes in node editor
+    if (nodeEditor) {
+      nodeEditor.addEventListener("toggle-config-change", (e) => {
+        const { surfaceId: sid, orientation, style, size } = e.detail;
+        if (!sid) return;
+
+        // Update element attributes
+        let surfaceEl = editorSurface.querySelector(`[surface-id="${sid}"]`);
+        if (!surfaceEl) surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
+        if (surfaceEl) {
+          if (orientation !== "vertical") surfaceEl.setAttribute("orientation", orientation);
+          else surfaceEl.removeAttribute("orientation");
+
+          if (size !== "medium") surfaceEl.setAttribute("size", size);
+          else surfaceEl.removeAttribute("size");
+
+          if (style !== "squared") surfaceEl.setAttribute("switch-style", style);
+          else surfaceEl.removeAttribute("switch-style");
+        }
+
+        // Update grid constraints and resize wrapper if needed
+        if (this._surfaceGrid) {
+          const { minW, minH } = TbComponent._toggleConstraints(orientation, size);
+          this._surfaceGrid.updateConstraints(sid, { minW, minH });
+
+          // Sync editor wrapper dimensions to match updated grid component
+          const gridComp = this._surfaceGrid.getComponent(sid);
+          if (gridComp) {
+            const wrapper = editorSurface.querySelector(`.surface-el-wrapper[data-surface-id="${sid}"]`);
+            if (wrapper) {
+              wrapper.style.width = gridComp.w * CELL_SIZE + "px";
+              wrapper.style.height = gridComp.h * CELL_SIZE + "px";
+            }
+            const item = editorItems.get(sid);
+            if (item) { item.w = gridComp.w; item.h = gridComp.h; }
+          }
+        }
+
+        this._emitSurfaceChange(compId);
+      });
     }
 
     // Editor surface and interactive elements
@@ -691,6 +811,13 @@ class TbComponent extends HTMLElement {
       if (colorSelector) colorSelector.style.display = "";
       this._mode = "surface";
 
+      // Sync circuitry changes to surface elements
+      if (nodeEditor) {
+        this._circuitryData = nodeEditor.getData();
+        this._syncLabelConfig();
+        this._syncToggleConfig();
+      }
+
       // Animate frame back to original size
       frame.style.left = this._origFrame.left + "px";
       frame.style.top = this._origFrame.top + "px";
@@ -802,9 +929,13 @@ class TbComponent extends HTMLElement {
     }
 
     // Restore live surface elements back to the surface grid container,
-    // then sync label config so elements are findable in the shadow DOM
+    // then sync label/toggle config so elements are findable in the shadow DOM
     this._restoreSurfaceElements();
     this._syncLabelConfig();
+    this._syncToggleConfig();
+
+    // Persist the surface config now that synced attributes are applied
+    this._emitSurfaceChange(this.getAttribute("component-id"));
 
     setTimeout(() => {
       this._overlay.remove();

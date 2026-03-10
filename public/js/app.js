@@ -219,41 +219,49 @@ function buildSurfaceElements(parentEl, elements) {
   }
 }
 
+// Props that need special handling and should not be applied as plain attributes.
+// "binding" is stored in dataset; "style" mapped to "style-type" for legacy configs;
+// camelCase legacy names mapped to their kebab-case attribute equivalents.
+const PROP_ALIAS = {
+  labelPos: "label-pos",
+  fontSize: "font-size",
+  switchStyle: "switch-style",
+  styleType: "style-type",
+  overwriteText: "overwrite-text",
+  style: "style-type",  // legacy: avoid collision with HTML style attribute
+};
+const PROP_SKIP = new Set(["binding"]);
+
+/** Apply all saved props as attributes on a surface element. */
+function applySurfaceProps(el, props) {
+  for (const [key, value] of Object.entries(props)) {
+    if (PROP_SKIP.has(key)) continue;
+    const attr = PROP_ALIAS[key] || key;
+    if (value === "" || value === true) {
+      el.setAttribute(attr, "");
+    } else if (value != null && value !== false) {
+      el.setAttribute(attr, value);
+    }
+  }
+  if (props.binding) el.dataset.binding = props.binding;
+}
+
 function createSurfaceElement(elem, index) {
   const props = elem.props || {};
+  let el;
 
   switch (elem.type) {
-    case "led": {
-      const el = document.createElement("tb-led");
-      if (props.color) el.setAttribute("color", props.color);
-      if (props.size) el.setAttribute("size", props.size);
-      if (props.label) el.setAttribute("label", props.label);
-      if (props.labelPos) el.setAttribute("label-pos", props.labelPos);
-      if (props.pulse) el.setAttribute("pulse", "");
-      el.dataset.binding = props.binding || "";
-      return el;
-    }
-    case "label": {
-      const el = document.createElement("tb-label");
-      if (props.text) el.setAttribute("text", props.text);
-      if (props["overwrite-text"] != null) el.setAttribute("overwrite-text", "");
-      if (props.style) el.setAttribute("style-type", props.style);
-      if (props.fontSize) el.setAttribute("font-size", props.fontSize);
-      if (props.align) el.setAttribute("align", props.align);
-      if (props.color) el.setAttribute("color", props.color);
-      return el;
-    }
-    case "dial": {
-      const el = document.createElement("tb-dial");
-      if (props.size) el.setAttribute("size", props.size);
-      el.dataset.binding = props.binding || "";
-      return el;
-    }
-    case "toggle": {
-      const el = document.createElement("tb-toggle");
-      if (props.label) el.setAttribute("label", props.label);
-      el.setAttribute("name", props.name || "");
-      el.dataset.binding = props.binding || "";
+    case "led":
+      el = document.createElement("tb-led");
+      break;
+    case "label":
+      el = document.createElement("tb-label");
+      break;
+    case "dial":
+      el = document.createElement("tb-dial");
+      break;
+    case "toggle":
+      el = document.createElement("tb-toggle");
       el.addEventListener("toggle-change", (e) => {
         // Legacy direct binding
         handleToggle(e.detail.name, e.detail.on);
@@ -262,22 +270,17 @@ function createSurfaceElement(elem, index) {
           handleToggleViaCircuitry(el.parentComponent, el.surfaceId, e.detail.on);
         }
       });
-      return el;
-    }
-    case "alert": {
-      const el = document.createElement("tb-alert");
-      if (props.color) el.setAttribute("color", props.color);
-      if (props.size) el.setAttribute("size", props.size);
-      if (props.mode) el.setAttribute("mode", props.mode);
-      if (props.speed) el.setAttribute("speed", props.speed);
-      if (props.label) el.setAttribute("label", props.label);
-      el.dataset.binding = props.binding || "";
-      return el;
-    }
+      break;
+    case "alert":
+      el = document.createElement("tb-alert");
+      break;
     default:
       console.warn(`Unknown surface element type: ${elem.type}`);
       return null;
   }
+
+  applySurfaceProps(el, props);
+  return el;
 }
 
 // --- Device State Binding ---
