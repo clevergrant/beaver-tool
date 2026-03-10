@@ -517,6 +517,15 @@ async function handleComponentConfigChange(detail) {
     comp.circuitry = detail.value;
   } else if (detail.property === "surface") {
     comp.surface = detail.value;
+    // Recalculate minimum size to fit all surface elements
+    if (detail.minWidth !== undefined || detail.minHeight !== undefined) {
+      comp.minWidth = detail.minWidth;
+      comp.minHeight = detail.minHeight;
+      grid.updateConstraints(detail.id, {
+        minW: detail.minWidth,
+        minH: detail.minHeight,
+      });
+    }
   }
 
   // Merge grid position

@@ -1082,6 +1082,12 @@ class TbComponent extends HTMLElement {
     const canResizeH = maxW === null || maxW > minW;
     const canResizeV = maxH === null || maxH > minH;
 
+    // Lock cursor and keep resize UI visible for the entire drag
+    const resizeCursor = canResizeH && canResizeV ? "nwse-resize" : canResizeH ? "ew-resize" : "ns-resize";
+    document.body.style.cursor = resizeCursor;
+    document.body.style.userSelect = "none";
+    wrapper.classList.add("resizing");
+
     const onMove = (e) => {
       const dx = e.clientX - startMouseX;
       const dy = e.clientY - startMouseY;
@@ -1105,6 +1111,9 @@ class TbComponent extends HTMLElement {
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      wrapper.classList.remove("resizing");
       if (this._surfaceGrid) {
         this._surfaceGrid.updateComponent(surfaceId, { w: item.w, h: item.h });
       }
@@ -1115,14 +1124,38 @@ class TbComponent extends HTMLElement {
     document.addEventListener("mouseup", onUp);
   }
 
+  /**
+   * Compute the minimum grid size needed for this component to fit all
+   * surface elements (plus the 1-cell margin on each side).
+   */
+  _computeRequiredMinSize() {
+    if (!this._surfaceGrid || this._surfaceGrid.components.size === 0) {
+      return { minW: COMP_MIN_WIDTH, minH: COMP_MIN_HEIGHT };
+    }
+    let maxRight = 0;
+    let maxBottom = 0;
+    for (const comp of this._surfaceGrid.components.values()) {
+      maxRight = Math.max(maxRight, comp.x + comp.w);
+      maxBottom = Math.max(maxBottom, comp.y + comp.h);
+    }
+    // +1 for the margin on the far side
+    return {
+      minW: Math.max(COMP_MIN_WIDTH, maxRight + 1),
+      minH: Math.max(COMP_MIN_HEIGHT, maxBottom + 1),
+    };
+  }
+
   /** Emit surface config change for persistence */
   _emitSurfaceChange(compId) {
+    const minSize = this._computeRequiredMinSize();
     this.dispatchEvent(new CustomEvent("component-config-change", {
       bubbles: true,
       detail: {
         id: compId,
         property: "surface",
         value: this._getSurfaceConfig(),
+        minWidth: minSize.minW,
+        minHeight: minSize.minH,
       },
     }));
   }

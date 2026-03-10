@@ -282,7 +282,8 @@ body {
   z-index: 3;
 }
 
-.surface-el-wrapper:hover .surface-resize-handle {
+.surface-el-wrapper:hover .surface-resize-handle,
+.surface-el-wrapper.resizing .surface-resize-handle {
   opacity: 1;
 }
 

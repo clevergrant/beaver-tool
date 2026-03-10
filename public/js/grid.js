@@ -139,6 +139,22 @@ class Grid {
     }
   }
 
+  /** Update a component's minimum size constraints, resizing up if needed */
+  updateConstraints(id, { minW, minH }) {
+    const comp = this.components.get(id);
+    if (!comp) return;
+    if (minW !== undefined) comp.minW = minW;
+    if (minH !== undefined) comp.minH = minH;
+    let changed = false;
+    if (comp.w < comp.minW) { comp.w = comp.minW; changed = true; }
+    if (comp.h < comp.minH) { comp.h = comp.minH; changed = true; }
+    if (changed) {
+      comp.el.style.width = comp.w * CELL_SIZE + "px";
+      comp.el.style.height = comp.h * CELL_SIZE + "px";
+      this._recalc();
+    }
+  }
+
   /** Update a component's position and size */
   updateComponent(id, { x, y, w, h }) {
     const comp = this.components.get(id);
