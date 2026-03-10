@@ -49,21 +49,6 @@ class TbComponent extends HTMLElement {
           overflow: hidden;
         }
 
-        /* Corner screws on surface view */
-        .surface-view::before,
-        .surface-view::after {
-          content: '';
-          position: absolute;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 2px 2px, #aaa89e, #6a6860);
-          box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
-          z-index: 2;
-        }
-        .surface-view::before { top: 4px; left: 4px; }
-        .surface-view::after { top: 4px; right: 4px; }
-
         .surface-screws-bottom {
           position: absolute;
           bottom: 0;
@@ -71,18 +56,7 @@ class TbComponent extends HTMLElement {
           right: 0;
           pointer-events: none;
         }
-        .surface-screws-bottom::before,
-        .surface-screws-bottom::after {
-          content: '';
-          position: absolute;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 2px 2px, #aaa89e, #6a6860);
-          box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
-        }
-        .surface-screws-bottom::before { bottom: 4px; left: 4px; }
-        .surface-screws-bottom::after { bottom: 4px; right: 4px; }
+        ${window.SCREW_STYLES(".surface-view", ".surface-screws-bottom", { size: 6, offset: 4 })}
 
         .surface-elements {
           position: relative;

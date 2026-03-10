@@ -1,3 +1,36 @@
+// Screw decoration CSS generator — reused by panels and surface views
+window.SCREW_STYLES = function screwStyles(sel, bottomSel, { size = 8, offset = 6 } = {}) {
+  const center = Math.round(size * 0.375);
+  return `
+  ${sel}::before,
+  ${sel}::after {
+    content: '';
+    position: absolute;
+    width: ${size}px;
+    height: ${size}px;
+    border-radius: 50%;
+    background: radial-gradient(circle at ${center}px ${center}px, #aaa89e, #6a6860);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+  }
+  ${sel}::before { top: ${offset}px; left: ${offset}px; }
+  ${sel}::after { top: ${offset}px; right: ${offset}px; }
+
+  ${bottomSel}::before,
+  ${bottomSel}::after {
+    content: '';
+    position: absolute;
+    width: ${size}px;
+    height: ${size}px;
+    border-radius: 50%;
+    background: radial-gradient(circle at ${center}px ${center}px, #aaa89e, #6a6860);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+  }
+  ${bottomSel}::before { bottom: ${offset}px; left: ${offset}px; }
+  ${bottomSel}::after { bottom: ${offset}px; right: ${offset}px; }
+  `;
+};
+
 // Shared base styles for all panel web components
 window.PANEL_BASE_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Russo+One&display=swap');
@@ -28,32 +61,7 @@ window.PANEL_BASE_STYLES = `
     font-family: 'Share Tech Mono', monospace;
   }
 
-  /* Corner screws */
-  .panel::before,
-  .panel::after {
-    content: '';
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 3px 3px, #aaa89e, #6a6860);
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
-  }
-  .panel::before { top: 6px; left: 6px; }
-  .panel::after { top: 6px; right: 6px; }
-
-  .panel-screws-bottom::before,
-  .panel-screws-bottom::after {
-    content: '';
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 3px 3px, #aaa89e, #6a6860);
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
-  }
-  .panel-screws-bottom::before { bottom: 6px; left: 6px; }
-  .panel-screws-bottom::after { bottom: 6px; right: 6px; }
+  ${window.SCREW_STYLES(".panel", ".panel-screws-bottom")}
 
   /* Dymo label */
   .dymo-label {

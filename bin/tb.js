@@ -152,7 +152,7 @@ async function cmdStatus() {
   // Check game directly
   const gameUp = await gameClient.isGameRunning();
   if (!running) {
-    console.log(`${dot(gameUp)} ${c.bold}Game${c.reset}      ${gameUp ? "reachable" : "not reachable"} ${c.dim}(${gameClient.GAME_API})${c.reset}`);
+    console.log(`${dot(gameUp)} ${c.bold}Game${c.reset}      ${gameUp ? "reachable" : "not reachable"} ${c.dim}(${gameClient.getGameApi()})${c.reset}`);
   }
 }
 
@@ -210,7 +210,7 @@ async function cmdLog() {
 
 async function cmdDevices() {
   try {
-    const devices = await gameClient.listDevices();
+    const devices = await gameClient.fetchDevices();
     const names = Object.keys(devices);
     if (names.length === 0) {
       console.log(`${c.dim}No devices found — is Timberborn running?${c.reset}`);
