@@ -13,6 +13,15 @@ This tool connects to that API to monitor and control your colony's automation s
 
 ## Setup
 
+### Windows Installer
+
+A standalone Windows installer is available on the [Releases](https://github.com/clevergrant/beaver-tool/releases) page. It bundles Node.js and adds the `tb` command to your PATH.
+
+## API Reference
+
+- [docs/timberborn-api.md](docs/timberborn-api.md) -- official HTTP API guide (from [timberborn.io](https://timberborn.io/))
+- [docs/timberborn-automation.md](docs/timberborn-automation.md) -- full automation system reference (buildings, bots, save format, modding)
+
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) v18+ (or use the Windows installer which bundles Node)
@@ -53,15 +62,6 @@ node bin/tb.js stop     # stop the daemon
 ```
 
 Then open `http://localhost:3000` (or your configured port) in a browser.
-
-### Windows Installer
-
-A standalone Windows installer is available on the [Releases](https://github.com/clevergrant/beaver-tool/releases) page. It bundles Node.js and adds the `tb` command to your PATH.
-
-## API Reference
-
-- [docs/timberborn-api.md](docs/timberborn-api.md) -- official HTTP API guide (from [timberborn.io](https://timberborn.io/))
-- [docs/timberborn-automation.md](docs/timberborn-automation.md) -- full automation system reference (buildings, bots, save format, modding)
 
 ## License
 
