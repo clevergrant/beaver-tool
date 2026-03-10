@@ -4,7 +4,7 @@ A web interface and CLI for controlling your beaver colony in [Timberborn](https
 
 ## How It Works
 
-Timberborn 1.0 exposes a REST API at `http://localhost:8080/api/` through two in-game automation buildings:
+Timberborn 1.0 exposes a REST API at `http://localhost:3000/api/` (or whichever port you set in-game) through two in-game automation buildings:
 
 - **HTTP Lever** -- receive commands from external systems (toggle signals on/off)
 - **HTTP Adapter** -- expose in-game signal states to external systems (read-only)
