@@ -296,12 +296,10 @@ class TbNodeEditor extends HTMLElement {
       el.remove();
     }
 
-    // Render nodes
+    // Render nodes (each _renderNode schedules its own deferred layout + connections)
     for (const node of this._nodes) {
       this._renderNode(node);
     }
-
-    this._renderConnections();
   }
 
   getData() {
@@ -494,7 +492,6 @@ class TbNodeEditor extends HTMLElement {
 
     this._nodes.push(node);
     this._renderNode(node);
-    this._renderConnections();
   }
 
   // --- Node Rendering ---
@@ -618,14 +615,13 @@ class TbNodeEditor extends HTMLElement {
 
         if (portType === "output") {
           // Start connection from output port
-          const portRect = port.getBoundingClientRect();
-          const canvasRect = this._canvas.getBoundingClientRect();
+          const start = this._portCenter(node, "output", portIndex);
           this._connecting = {
             nodeId: node.id,
             portType: "output",
             portIndex,
-            startX: node.x + el.offsetWidth,
-            startY: this._portY(node, portIndex),
+            startX: start.x,
+            startY: start.y,
           };
         }
       });
@@ -695,33 +691,55 @@ class TbNodeEditor extends HTMLElement {
 
     this._inner.appendChild(el);
 
-    // Procedurally position ports based on actual rendered header height
-    this._layoutPorts(node);
+    // Queue deferred port layout — batches multiple _renderNode calls into one rAF
+    this._pendingLayout = this._pendingLayout || [];
+    this._pendingLayout.push(node);
+    if (!this._layoutRafId) {
+      this._layoutRafId = requestAnimationFrame(() => {
+        for (const n of this._pendingLayout) this._layoutPorts(n);
+        this._pendingLayout = null;
+        this._layoutRafId = null;
+        this._renderConnections();
+      });
+    }
   }
 
-  /** Position port dots based on actual header height, storing the offset for connection rendering */
+  /** Position port dots vertically, centered in the node body */
   _layoutPorts(node) {
     const el = node._el;
     if (!el) return;
     const header = el.querySelector(".node-header");
+    const body = el.querySelector(".node-body");
     const headerH = header ? header.offsetHeight : 22;
-    const portSpacing = 25;
-    // Center first port in the body area: header height + half a port spacing
-    const portOffset = headerH + portSpacing;
-    node._portOffset = portOffset;
+    const bodyH = body ? body.offsetHeight : 28;
+    const ports = el.querySelectorAll(".port");
+    if (!ports.length) return;
 
-    for (const port of el.querySelectorAll(".port")) {
+    const portSize = 14; // 10px + 2px border each side
+    const portSpacing = 25;
+    const totalPortsH = (ports.length - 1) * portSpacing + portSize;
+    // Center the port block vertically within the body area
+    const startY = headerH + Math.max(0, (bodyH - totalPortsH) / 2);
+
+    for (const port of ports) {
       const idx = parseInt(port.dataset.portIndex) || 0;
-      port.style.top = (portOffset + idx * portSpacing) + "px";
+      port.style.top = (startY + idx * portSpacing) + "px";
     }
   }
 
-  /** Get the canvas-space Y coordinate for a port's connection point */
-  _portY(node, portIndex) {
-    const portSpacing = 25;
-    const portOffset = node._portOffset || 30;
-    // Port is 10px + 2px border each side = 14px visual; center = 7px
-    return node.y + portOffset + portIndex * portSpacing + 7;
+  /** Get canvas-space center of a port element by reading its actual rendered position */
+  _portCenter(node, portType, portIndex) {
+    const sel = `.port.${portType}-port[data-port-index="${portIndex}"]`;
+    const portEl = node._el?.querySelector(sel);
+    if (!portEl) return { x: node.x, y: node.y + 30 };
+
+    const portRect = portEl.getBoundingClientRect();
+    const canvasRect = this._canvas.getBoundingClientRect();
+
+    return {
+      x: (portRect.left + portRect.width / 2 - canvasRect.left - this._pan.x) / this._zoom,
+      y: (portRect.top + portRect.height / 2 - canvasRect.top - this._pan.y) / this._zoom,
+    };
   }
 
   /** Public API: add a node from external data (e.g. surface registration) */
@@ -730,7 +748,6 @@ class TbNodeEditor extends HTMLElement {
     const node = { ...nodeData, _el: null };
     this._nodes.push(node);
     this._renderNode(node);
-    this._renderConnections();
   }
 
   /** Public API: remove a node and its edges by ID */
@@ -865,10 +882,9 @@ class TbNodeEditor extends HTMLElement {
       const fromPortIndex = parseInt((edge.fromPort || "out-0").split("-")[1]) || 0;
       const toPortIndex = parseInt((edge.toPort || "in-0").split("-")[1]) || 0;
 
-      const x1 = fromNode.x + fromNode._el.offsetWidth;
-      const y1 = this._portY(fromNode, fromPortIndex);
-      const x2 = toNode.x;
-      const y2 = this._portY(toNode, toPortIndex);
+      const from = this._portCenter(fromNode, "output", fromPortIndex);
+      const to = this._portCenter(toNode, "input", toPortIndex);
+      const x1 = from.x, y1 = from.y, x2 = to.x, y2 = to.y;
 
       const dx = Math.abs(x2 - x1) * 0.5;
       const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
