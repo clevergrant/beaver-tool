@@ -415,6 +415,23 @@ function propagateDeviceStateViaCircuitry(tbComp, circuitry, devices) {
     const surfaceEl = findSurfaceElement(tbComp, targetNode.config.surfaceId);
     if (surfaceEl) surfaceEl.on = outputVal;
   }
+
+  // Reverse-sync: update toggle visuals from connected device state
+  for (const edge of edges) {
+    const sourceNode = nodes.find(n => n.id === edge.from);
+    if (!sourceNode?.config?.surfaceManaged || sourceNode.type !== "surface-toggle") continue;
+
+    const targetNode = nodes.find(n => n.id === edge.to);
+    if (!targetNode || (targetNode.type !== "lever" && targetNode.type !== "adapter")) continue;
+
+    const deviceState = nodeOutputs[targetNode.id]?.["out-0"];
+    if (deviceState === undefined) continue;
+
+    const surfaceEl = findSurfaceElement(tbComp, sourceNode.config.surfaceId);
+    if (surfaceEl && surfaceEl.on !== deviceState) {
+      surfaceEl.on = deviceState;
+    }
+  }
 }
 
 /**

@@ -698,6 +698,7 @@ class TbNodeEditor extends HTMLElement {
     const levers = [];
     const adapters = [];
     for (const [name, dev] of Object.entries(this._devices)) {
+      if (name.startsWith("watch:")) continue;
       if (dev.type === "lever") levers.push(name);
       else if (dev.type === "adapter") adapters.push(name);
     }
