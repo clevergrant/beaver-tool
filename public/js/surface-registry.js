@@ -63,6 +63,35 @@ SurfaceComponents.register({
   },
 });
 
+// --- Color Picker ---
+SurfaceComponents.register({
+  type: "color-picker",
+  name: "Color Picker",
+  icon: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" fill="#3a3a38" stroke="#555" stroke-width="1.2"/><circle cx="8" cy="8" r="3.5" fill="#ffaa20" opacity="0.9"/><path d="M5 8a3 3 0 0 1 6 0" stroke="#ff4c2e" stroke-width="1" fill="none" opacity="0.6"/><path d="M5 8a3 3 0 0 0 6 0" stroke="#64b53c" stroke-width="1" fill="none" opacity="0.6"/></svg>',
+  category: "control",
+  width: 2,
+  height: 2,
+  resizable: false,
+  factory(id, gridX, gridY) {
+    return {
+      id,
+      name: "Color Picker",
+      x: gridX,
+      y: gridY,
+      minWidth: 2,
+      minHeight: 2,
+      color: "#1a1a18",
+      surface: [{
+        type: "color-picker",
+        x: 0, y: 0,
+        width: 2, height: 2,
+        props: { color: "#ffaa20" },
+      }],
+      circuitry: { nodes: [], edges: [] },
+    };
+  },
+});
+
 // --- Alert Lamp ---
 SurfaceComponents.register({
   type: "alert-lamp",

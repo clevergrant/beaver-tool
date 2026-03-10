@@ -1015,6 +1015,7 @@ class TbComponent extends HTMLElement {
         { type: "dial",   tag: "tb-dial",   name: "Dial",          icon: "◔" },
         { type: "toggle", tag: "tb-toggle", name: "Toggle Switch", icon: "⏻" },
         { type: "alert",  tag: "tb-alert",  name: "Alert",         icon: "⚠" },
+        { type: "color-picker", tag: "tb-color-picker", name: "Color Picker", icon: "🎨" },
       ].map(et => {
         const tmp = document.createElement(et.tag);
         const sc = tmp.constructor.sizeConstraints || { minW: 1, minH: 1 };
