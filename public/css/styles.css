@@ -94,35 +94,6 @@ body {
 	color: #8a8880;
 }
 
-.header-btn {
-	display: flex;
-	align-items: center;
-	gap: 0.3rem;
-	background: #3a3a36;
-	border: 1px solid #5a5a54;
-	border-radius: 3px;
-	padding: 0.2rem 0.5rem;
-	cursor: pointer;
-	font-family: "Share Tech Mono", monospace;
-	font-size: 0.55rem;
-	letter-spacing: 0.15em;
-	text-transform: uppercase;
-	color: #8a8880;
-	transition: all 0.3s;
-}
-
-.header-btn:hover {
-	background: #4a4a44;
-	color: #c0bdb0;
-}
-
-.header-btn.active {
-	background: #4a3020;
-	border-color: #8a5a30;
-	color: #ffaa20;
-	box-shadow: 0 0 8px rgba(255, 170, 32, 0.2);
-}
-
 /* === GRID CONTAINER === */
 #grid-container {
 	flex: 1;
@@ -337,6 +308,45 @@ body {
 .recenter-btn:hover {
 	background: rgba(255, 255, 255, 0.15);
 	color: #fff;
+}
+
+/* === EDIT FAB (dashboard only) === */
+.edit-fab {
+	position: fixed;
+	bottom: 24px;
+	right: 24px;
+	z-index: 3000;
+	display: flex;
+	align-items: center;
+	background: #3a3a36;
+	border: 1px solid #5a5a54;
+	border-radius: 50%;
+	width: 48px;
+	height: 48px;
+	justify-content: center;
+	cursor: pointer;
+	font-size: 1.2rem;
+	color: #8a8880;
+	transform: scaleX(-1);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+	transition: all 0.3s;
+}
+
+.edit-fab:hover {
+	background: #4a4a44;
+	color: #c0bdb0;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+}
+
+.edit-fab.active {
+	background: #4a3020;
+	border-color: #8a5a30;
+	color: #ffaa20;
+	box-shadow: 0 0 12px rgba(255, 170, 32, 0.3);
+}
+
+.edit-fab.hidden {
+	display: none;
 }
 
 /* === COLOR SELECTOR FAB === */

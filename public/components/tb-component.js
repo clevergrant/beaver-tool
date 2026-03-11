@@ -348,6 +348,7 @@ class TbComponent extends HTMLElement {
     this._syncLabelConfig();
     this._syncToggleConfig();
     this._syncRainbowConfig();
+    this._syncCameraConfig();
   }
 
   attributeChangedCallback() {
@@ -469,7 +470,10 @@ class TbComponent extends HTMLElement {
     if (!sid) return;
 
     const nodeId = "surface-" + sid;
-    const ports = surfaceComponent.constructor.circuitryPorts || { inputs: [], outputs: [] };
+    // Camera components provide dynamic ports via buildPorts()
+    const ports = (typeof surfaceComponent.buildPorts === "function")
+      ? surfaceComponent.buildPorts()
+      : (surfaceComponent.constructor.circuitryPorts || { inputs: [], outputs: [] });
     const type = surfaceComponent.tagName.toLowerCase().replace("tb-", "surface-");
 
     // Don't add if already exists
@@ -495,17 +499,28 @@ class TbComponent extends HTMLElement {
       }
     }
 
+    const config = {
+      surfaceId: sid,
+      ports: ports,
+      surfaceManaged: true,
+      label: surfaceComponent.getAttribute("label") || sid,
+    };
+
+    // Copy observed attributes into node config for persistence
+    const observed = surfaceComponent.constructor.observedAttributes;
+    if (observed) {
+      for (const attr of observed) {
+        const raw = surfaceComponent.getAttribute(attr);
+        if (raw != null) config[attr] = raw;
+      }
+    }
+
     const nodeData = {
       id: nodeId,
       type: type,
       x: spawnX,
       y: spawnY,
-      config: {
-        surfaceId: sid,
-        ports: ports,
-        surfaceManaged: true,
-        label: surfaceComponent.getAttribute("label") || sid,
-      },
+      config,
     };
 
     this._circuitryData.nodes.push(nodeData);
@@ -651,6 +666,25 @@ class TbComponent extends HTMLElement {
       const fps = node.config.fps;
       if (fps && parseFloat(fps) > 0) {
         surfaceEl.setAttribute("fps", String(fps));
+      }
+    }
+  }
+
+  _syncCameraConfig() {
+    const { nodes } = this._circuitryData;
+    if (!nodes?.length) return;
+
+    for (const node of nodes) {
+      if (node.type !== "surface-camera" || !node.config?.surfaceManaged) continue;
+      const sid = node.config.surfaceId;
+      const surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`);
+      if (!surfaceEl) continue;
+
+      const observed = surfaceEl.constructor.observedAttributes;
+      if (observed) {
+        for (const attr of observed) {
+          if (node.config[attr] != null) surfaceEl.setAttribute(attr, String(node.config[attr]));
+        }
       }
     }
   }
@@ -838,6 +872,7 @@ class TbComponent extends HTMLElement {
     this._syncToggleConfig();
     this._syncLabelConfig();
     this._syncRainbowConfig();
+    this._syncCameraConfig();
 
     // Update the editor handle to match the (potentially changed) size
     const updatedComp = this._surfaceGrid.getComponent(newSid);
@@ -987,6 +1022,43 @@ class TbComponent extends HTMLElement {
       this._nodeEditor.highlightColor = color;
     }
 
+    // Camera config change — sync to surface element and handle connect
+    if (this._nodeEditor && !this._cameraConfigHandler) {
+      this._cameraConfigHandler = (e) => {
+        const { surfaceId, changeType, ...attrs } = e.detail;
+        const surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${surfaceId}"]`);
+        if (!surfaceEl) return;
+
+        if (changeType === "connect") {
+          // Toggle camera on/off
+          if (surfaceEl._active) {
+            surfaceEl._stopCamera();
+          } else {
+            surfaceEl._startCamera();
+          }
+          // Update button text in node editor
+          const node = this._circuitryData.nodes.find(
+            n => n.config?.surfaceId === surfaceId
+          );
+          if (node?._el) {
+            const btn = node._el.querySelector(".camera-connect-btn");
+            if (btn) {
+              btn.textContent = surfaceEl._active ? "⏹ Stop Camera" : "▶ Connect Camera";
+              btn.classList.toggle("active", surfaceEl._active);
+            }
+          }
+        } else {
+          // Sync all config attributes to the surface element
+          for (const [key, val] of Object.entries(attrs)) {
+            if (val != null) surfaceEl.setAttribute(key, String(val));
+          }
+          this._emitSurfaceChange(this.getAttribute("component-id"));
+        }
+      };
+      this._nodeEditor.addEventListener("camera-config-change", this._cameraConfigHandler);
+      this._nodeEditor.addEventListener("circuitry-data-change", () => this._emitCircuitryChange());
+    }
+
     // Color FAB — appended to body so it sits at page bottom-right
     const colorSelector = document.createElement("tb-color-selector");
     colorSelector.className = "color-selector";
@@ -1036,6 +1108,7 @@ class TbComponent extends HTMLElement {
         { type: "alert",  tag: "tb-alert",  name: "Alert",         icon: "⚠" },
         { type: "color-picker", tag: "tb-color-picker", name: "Color Picker", icon: "🎨" },
         { type: "rainbow", tag: "tb-rainbow", name: "Rainbow", icon: "🌈" },
+        { type: "camera",  tag: "tb-camera",  name: "Camera Feed", icon: "▣" },
       ].map(et => {
         const tmp = document.createElement(et.tag);
         const sc = tmp.constructor.sizeConstraints || { minW: 1, minH: 1 };
@@ -1198,6 +1271,7 @@ class TbComponent extends HTMLElement {
     // Update global editor state
     window.editorState.activeComponentId = compId;
     window.editorState.mode = "surface";
+    window.dispatchEvent(new CustomEvent("editor-mode-change", { detail: { mode: "surface" } }));
 
     // Store original frame size for restoring when switching back to surface
     const margin = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--editor-margin")) || 40;
@@ -1221,6 +1295,7 @@ class TbComponent extends HTMLElement {
       if (colorSelector) colorSelector.style.display = "";
       this._mode = "surface";
       window.editorState.mode = "surface";
+      window.dispatchEvent(new CustomEvent("editor-mode-change", { detail: { mode: "surface" } }));
 
       // Sync circuitry changes to surface elements
       if (this._nodeEditor) {
@@ -1228,6 +1303,7 @@ class TbComponent extends HTMLElement {
         this._syncLabelConfig();
         this._syncToggleConfig();
         this._syncRainbowConfig();
+        this._syncCameraConfig();
       }
 
       // Animate back to original size
@@ -1245,6 +1321,7 @@ class TbComponent extends HTMLElement {
       if (colorSelector) colorSelector.style.display = "none";
       this._mode = "circuitry";
       window.editorState.mode = "circuitry";
+      window.dispatchEvent(new CustomEvent("editor-mode-change", { detail: { mode: "circuitry" } }));
 
       // Animate to fill viewport minus margin
       this.style.left = margin + "px";
@@ -1340,6 +1417,7 @@ class TbComponent extends HTMLElement {
     this._syncLabelConfig();
     this._syncToggleConfig();
     this._syncRainbowConfig();
+    this._syncCameraConfig();
 
     // Persist the surface config
     this._emitSurfaceChange(this.getAttribute("component-id"));
@@ -1402,6 +1480,7 @@ class TbComponent extends HTMLElement {
       this._closing = false;
       window.editorState.activeComponentId = null;
       window.editorState.mode = "dashboard";
+      window.dispatchEvent(new CustomEvent("editor-mode-change", { detail: { mode: "dashboard" } }));
     }, 400);
   }
 

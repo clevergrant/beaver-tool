@@ -16,12 +16,13 @@
         <tb-led id="conn-led" color="red" size="10"></tb-led>
         <span id="conn-text">Link Down</span>
       </div>
-      <button class="header-btn" id="edit-btn" title="Toggle grid editing mode">
-        <span id="edit-icon">&#128297;</span>
-        <span id="edit-label">Locked</span>
-      </button>
     </div>
   </div>
+
+  <!-- Edit FAB (dashboard only) -->
+  <button class="edit-fab" id="edit-btn" title="Toggle grid editing mode">
+    <span id="edit-icon">&#128208;</span>
+  </button>
 
   <!-- GRID -->
   <div id="grid-container">
@@ -38,6 +39,7 @@
   <script src="/components/surface/tb-alert.js"></script>
   <script src="/components/surface/tb-color-picker.js"></script>
   <script src="/components/surface/tb-rainbow.js"></script>
+  <script src="/components/surface/tb-camera.js"></script>
   <script src="/components/tb-color-selector.js"></script>
   <script src="/components/tb-node-editor.js"></script>
   <script src="/components/tb-component.js"></script>

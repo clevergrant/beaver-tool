@@ -10,6 +10,14 @@ let ws
 let grid
 let deviceState = {}
 
+/**
+ * Pixel screen map — screenId (string|"") → { pixels: Set<"x-y">, width, height }
+ * Built from lever names matching pixel:[ID:]X-Y pattern.
+ * Empty string key "" represents the default (null) screen.
+ */
+const pixelScreens = new Map()
+const PIXEL_RE = /^pixel:(?:([^:]*):)?(\d+)-(\d+)$/
+
 /** Global editor state — single source of truth for which view is active. */
 window.editorState = { activeComponentId: null, mode: "dashboard" }
 
@@ -22,7 +30,6 @@ const connLed = document.getElementById("conn-led")
 const connText = document.getElementById("conn-text")
 const editBtn = document.getElementById("edit-btn")
 const editIcon = document.getElementById("edit-icon")
-const editLabel = document.getElementById("edit-label")
 
 let editing = false
 
@@ -42,11 +49,28 @@ editBtn.addEventListener("click", () => {
 	if (editing) {
 		editBtn.classList.add("active")
 		editIcon.innerHTML = "&#128295;" // wrench
-		editLabel.textContent = "Editing"
 	} else {
 		editBtn.classList.remove("active")
-		editIcon.innerHTML = "&#128297;" // nut & bolt
-		editLabel.textContent = "Locked"
+		editIcon.innerHTML = "&#128208;" // square
+	}
+})
+
+// Click on grid background exits edit mode
+gridViewport.addEventListener("click", (e) => {
+	if (!editing) return
+	if (e.target !== gridViewport) return
+	editing = false
+	grid.setEditing(false)
+	editBtn.classList.remove("active")
+	editIcon.innerHTML = "&#128208;" // square
+})
+
+// Hide edit FAB when an editor is open (surface/circuitry mode)
+window.addEventListener("editor-mode-change", (e) => {
+	if (e.detail.mode === "dashboard") {
+		editBtn.classList.remove("hidden")
+	} else {
+		editBtn.classList.add("hidden")
 	}
 })
 
@@ -296,6 +320,14 @@ function createSurfaceElement(elem, index) {
 				}
 			})
 			break
+		case "camera":
+			el = document.createElement("tb-camera")
+			el.addEventListener("color-batch", (e) => {
+				if (el.surfaceId && el.parentComponent) {
+					handleCameraBatchViaCircuitry(el.parentComponent, el.surfaceId, e.detail.pixels)
+				}
+			})
+			break
 		default:
 			console.warn(`Unknown surface element type: ${elem.type}`)
 			return null
@@ -307,8 +339,76 @@ function createSurfaceElement(elem, index) {
 
 // --- Device State Binding ---
 
+/**
+ * Scan devices for pixel:X-Y levers and build screen maps.
+ * Each screen ID gets a Set of "x-y" coordinate strings, plus width/height.
+ */
+function mapPixels(devices) {
+	// Rebuild from scratch — device list from polling is the source of truth
+	pixelScreens.clear()
+
+	for (const name of Object.keys(devices)) {
+		const m = PIXEL_RE.exec(name)
+		if (!m) continue
+
+		// Group 1: screen ID (undefined → default, empty string → default)
+		const screenId = m[1] || ""
+		const x = parseInt(m[2])
+		const y = parseInt(m[3])
+
+		let screen = pixelScreens.get(screenId)
+		if (!screen) {
+			screen = { pixels: new Set(), width: 0, height: 0 }
+			pixelScreens.set(screenId, screen)
+		}
+		screen.pixels.add(`${x}-${y}`)
+		if (x + 1 > screen.width) screen.width = x + 1
+		if (y + 1 > screen.height) screen.height = y + 1
+	}
+}
+
+/**
+ * Walk circuitry to find screen nodes and propagate their resolution
+ * to connected camera surface elements.
+ */
+function propagateScreenResolutions(tbComp, circuitry) {
+	const { nodes, edges } = circuitry
+	if (!nodes.length) return
+
+	for (const node of nodes) {
+		if (node.type !== "screen") continue
+
+		const screenId = node.config?.screenId || ""
+		const screen = pixelScreens.get(screenId)
+		const w = screen?.width || 0
+		const h = screen?.height || 0
+		const count = screen?.pixels.size || 0
+
+		// Store on node config for display in node editor
+		if (!node.config) node.config = {}
+		node.config._screenWidth = w
+		node.config._screenHeight = h
+		node.config._pixelCount = count
+		node.config._pixels = screen?.pixels || null
+
+		// Find camera connected to this screen's input port
+		for (const edge of edges) {
+			if (edge.to !== node.id) continue
+			const sourceNode = nodes.find(n => n.id === edge.from)
+			if (!sourceNode?.config?.surfaceManaged) continue
+			if (sourceNode.type !== "surface-camera") continue
+
+			const surfaceEl = findSurfaceElement(tbComp, sourceNode.config.surfaceId)
+			if (surfaceEl && typeof surfaceEl.setResolution === "function") {
+				surfaceEl.setResolution(w, h, screen?.pixels || new Set())
+			}
+		}
+	}
+}
+
 function applyDeviceState(devices) {
 	deviceState = devices
+	mapPixels(devices)
 
 	for (const [id, comp] of componentData) {
 		const gridComp = grid.getComponent(id)
@@ -322,6 +422,7 @@ function applyDeviceState(devices) {
 		const circuitry = tbComp.circuitryData
 		if (circuitry && circuitry.nodes && circuitry.edges) {
 			propagateDeviceStateViaCircuitry(tbComp, circuitry, devices)
+			propagateScreenResolutions(tbComp, circuitry)
 		}
 
 		// --- Legacy data-binding fallback ---
@@ -573,6 +674,43 @@ function syncSiblingColorSurfaces(tbComp, circuitry, targetNodeId, sourceNodeId,
 			el.setAttribute("color", color)
 			persistSurfaceColor(compId, sid, color)
 		}
+	}
+}
+
+/**
+ * Handle camera batch via circuitry: walk edges from camera's output to find
+ * a connected screen node, then fire-and-forget color calls for each pixel.
+ */
+function handleCameraBatchViaCircuitry(tbComp, surfaceId, pixels) {
+	const circuitry = tbComp.circuitryData
+	if (!circuitry?.nodes?.length || !circuitry?.edges?.length) return
+
+	const nodeId = "surface-" + surfaceId
+
+	// Find the screen node connected to this camera's output
+	let screenNode = null
+	for (const edge of circuitry.edges) {
+		if (edge.from !== nodeId) continue
+		const target = circuitry.nodes.find(n => n.id === edge.to)
+		if (target?.type === "screen") {
+			screenNode = target
+			break
+		}
+	}
+	if (!screenNode) return
+
+	const screenId = screenNode.config?.screenId || ""
+	const screen = pixelScreens.get(screenId)
+	if (!screen) return
+
+	// Build lever name prefix
+	const prefix = screenId ? `pixel:${screenId}:` : "pixel:"
+
+	for (const { x, y, color } of pixels) {
+		const key = `${x}-${y}`
+		if (!screen.pixels.has(key)) continue // dead pixel — skip
+		const name = `${prefix}${key}`
+		fetch(`/api/color/${encodeURIComponent(name)}/${color}`, { method: "POST" })
 	}
 }
 

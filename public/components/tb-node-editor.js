@@ -332,6 +332,31 @@ class TbNodeEditor extends HTMLElement {
           display: block;
         }
 
+        /* Camera/screen button styles */
+        .camera-btn {
+          background: #2a2a28;
+          border: 1px solid #4a4a44;
+          border-radius: 3px;
+          color: #e0ddd0;
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.55rem;
+          padding: 3px 8px;
+          cursor: pointer;
+          width: 100%;
+          text-align: center;
+          letter-spacing: 0.05em;
+        }
+
+        .camera-btn:hover {
+          border-color: #60a0ff;
+          color: #60a0ff;
+        }
+
+        .camera-btn.active {
+          border-color: #30ff60;
+          color: #30ff60;
+        }
+
       </style>
 
       <div class="canvas">
@@ -695,10 +720,12 @@ class TbNodeEditor extends HTMLElement {
   }
 
   _buildContextMenuItems() {
+    const pixelPattern = /^pixel:(?:([^:]*):)?(\d+)-(\d+)$/;
     const levers = [];
     const adapters = [];
     for (const [name, dev] of Object.entries(this._devices)) {
       if (name.startsWith("watch:")) continue;
+      if (pixelPattern.test(name)) continue; // pixel levers handled by screen nodes
       if (dev.type === "lever") levers.push(name);
       else if (dev.type === "adapter") adapters.push(name);
     }
@@ -735,10 +762,35 @@ class TbNodeEditor extends HTMLElement {
       </div>`;
     }
 
-    if (!levers.length && !adapters.length) {
+    // Discover screens from pixel:* levers
+    const screenIds = new Set();
+    for (const name of Object.keys(this._devices)) {
+      const m = pixelPattern.exec(name);
+      if (m) screenIds.add(m[1] || "");
+    }
+    const screens = [...screenIds].sort();
+
+    if (screens.length) {
+      let items = "";
+      for (const sid of screens) {
+        const label = sid || "(default)";
+        items += `<div class="context-menu-item" data-type="screen" data-device="${sid}">${label}</div>`;
+      }
+      html += `<div class="context-menu-accordion">
+        <div class="context-menu-accordion-trigger">
+          <span>Screens (${screens.length})</span>
+          <span class="context-menu-accordion-arrow">&#9654;</span>
+        </div>
+        <div class="context-menu-accordion-body">${items}</div>
+      </div>`;
+    }
+
+    if (!levers.length && !adapters.length && !screens.length) {
       html += `<div class="context-menu-header">No devices found</div>`;
     }
 
+    // Separator + re-center
+    html += `<div style="border-top:1px solid #3a3a34;margin:4px 0;"></div>`;
     html += `<div class="context-menu-item" data-action="recenter">Re-center</div>`;
 
     this._contextMenu.innerHTML = html;
@@ -778,7 +830,11 @@ class TbNodeEditor extends HTMLElement {
 
     const id = `node-${this._nextNodeId++}`;
     const config = {};
-    if (deviceName) config.device = deviceName;
+    if (type === "screen" && deviceName != null) {
+      config.screenId = deviceName || null;
+    } else if (deviceName) {
+      config.device = deviceName;
+    }
 
     const node = {
       id,
@@ -983,90 +1039,51 @@ class TbNodeEditor extends HTMLElement {
       });
     }
 
+    // Camera controls
+    const cameraConnectBtn = el.querySelector(".camera-connect-btn");
+    if (cameraConnectBtn) {
+      cameraConnectBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+      cameraConnectBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._emitCameraConfigChange(node, "connect");
+      });
+    }
+    const cameraFps = el.querySelector(".camera-fps");
+    if (cameraFps) {
+      cameraFps.addEventListener("mousedown", (e) => e.stopPropagation());
+      cameraFps.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        const val = parseInt(cameraFps.value);
+        node.config.fps = val > 0 ? val : DEFAULT_FPS;
+        this._emitCameraConfigChange(node, "fps");
+      });
+    }
+    const cameraThreshold = el.querySelector(".camera-threshold");
+    if (cameraThreshold) {
+      cameraThreshold.addEventListener("mousedown", (e) => e.stopPropagation());
+      cameraThreshold.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        const val = parseInt(cameraThreshold.value);
+        node.config.threshold = (val >= 0 && val <= 255) ? val : DEFAULT_THRESHOLD;
+        this._emitCameraConfigChange(node, "threshold");
+      });
+    }
+
+    // Screen node: screen ID input
+    const screenIdInput = el.querySelector(".screen-id-input");
+    if (screenIdInput) {
+      screenIdInput.addEventListener("mousedown", (e) => e.stopPropagation());
+      screenIdInput.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        const val = screenIdInput.value.trim();
+        node.config.screenId = val || null;
+        this._emitChange();
+      });
+    }
+
     // Port connections (disabled when multi-selected)
     for (const port of el.querySelectorAll(".port")) {
-      port.addEventListener("mousedown", (e) => {
-        if (this._selectedNodes.size > 1) return; // no port interaction when multi-selected
-        e.stopPropagation();
-        const portType = port.dataset.portType;
-        const portIndex = parseInt(port.dataset.portIndex);
-
-        if (portType === "output") {
-          // Start connection from output port
-          const start = this._portCenter(node, "output", portIndex);
-          this._connecting = {
-            nodeId: node.id,
-            portType: "output",
-            portIndex,
-            startX: start.x,
-            startY: start.y,
-          };
-        }
-      });
-
-      port.addEventListener("mouseup", (e) => {
-        if (this._selectedNodes.size > 1) return;
-        e.stopPropagation();
-        if (this._connecting && port.dataset.portType === "input") {
-          // Complete connection
-          const targetNodeId = node.id;
-          if (this._connecting.nodeId !== targetNodeId) {
-            this._edges.push({
-              from: this._connecting.nodeId,
-              fromPort: `out-${this._connecting.portIndex}`,
-              to: targetNodeId,
-              toPort: `in-${port.dataset.portIndex}`,
-            });
-            this._renderConnections();
-          }
-          this._connecting = null;
-          this._removeTempConnection();
-        }
-      });
-
-      port.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const portType = port.dataset.portType;
-        const portIndex = parseInt(port.dataset.portIndex);
-        const portKey = portType === "output" ? `out-${portIndex}` : `in-${portIndex}`;
-
-        // Count connections on this port
-        const count = this._edges.filter(edge =>
-          (portType === "output" && edge.from === node.id && edge.fromPort === portKey) ||
-          (portType === "input" && edge.to === node.id && edge.toPort === portKey)
-        ).length;
-
-        if (count === 0) return;
-
-        const menu = document.createElement("div");
-        menu.className = "ctx-menu";
-        menu.style.left = e.clientX + "px";
-        menu.style.top = e.clientY + "px";
-
-        const item = document.createElement("div");
-        item.className = "ctx-menu-item ctx-menu-delete";
-        item.innerHTML = `<span class="ctx-menu-delete-icon">&#x2716;</span> <span>Disconnect ${count > 1 ? `all ${count}` : ""}</span>`;
-        item.addEventListener("click", () => {
-          this._edges = this._edges.filter(edge =>
-            !((portType === "output" && edge.from === node.id && edge.fromPort === portKey) ||
-              (portType === "input" && edge.to === node.id && edge.toPort === portKey))
-          );
-          this._renderConnections();
-          menu.remove();
-        });
-        menu.appendChild(item);
-        document.body.appendChild(menu);
-
-        // Keep within circuitry box boundaries
-        const hostRect = this.getBoundingClientRect();
-        const menuRect = menu.getBoundingClientRect();
-        if (menuRect.right > hostRect.right) menu.style.left = (e.clientX - menuRect.width) + "px";
-        if (menuRect.bottom > hostRect.bottom) menu.style.top = (e.clientY - menuRect.height) + "px";
-
-        const dismiss = () => { menu.remove(); document.removeEventListener("click", dismiss); };
-        document.addEventListener("click", dismiss);
-      });
+      this._attachPortHandlers(node, port);
     }
 
     this._inner.appendChild(el);
@@ -1084,10 +1101,93 @@ class TbNodeEditor extends HTMLElement {
     }
   }
 
+  /** Attach connection handlers to a single port element */
+  _attachPortHandlers(node, port) {
+    port.addEventListener("mousedown", (e) => {
+      if (this._selectedNodes.size > 1) return;
+      e.stopPropagation();
+      const portType = port.dataset.portType;
+      const portIndex = parseInt(port.dataset.portIndex);
+
+      if (portType === "output") {
+        const start = this._portCenter(node, "output", portIndex);
+        this._connecting = {
+          nodeId: node.id,
+          portType: "output",
+          portIndex,
+          startX: start.x,
+          startY: start.y,
+        };
+      }
+    });
+
+    port.addEventListener("mouseup", (e) => {
+      if (this._selectedNodes.size > 1) return;
+      e.stopPropagation();
+      if (this._connecting && port.dataset.portType === "input") {
+        const targetNodeId = node.id;
+        if (this._connecting.nodeId !== targetNodeId) {
+          this._edges.push({
+            from: this._connecting.nodeId,
+            fromPort: `out-${this._connecting.portIndex}`,
+            to: targetNodeId,
+            toPort: `in-${port.dataset.portIndex}`,
+          });
+          this._renderConnections();
+        }
+        this._connecting = null;
+        this._removeTempConnection();
+      }
+    });
+
+    port.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const portType = port.dataset.portType;
+      const portIndex = parseInt(port.dataset.portIndex);
+      const portKey = portType === "output" ? `out-${portIndex}` : `in-${portIndex}`;
+
+      const count = this._edges.filter(edge =>
+        (portType === "output" && edge.from === node.id && edge.fromPort === portKey) ||
+        (portType === "input" && edge.to === node.id && edge.toPort === portKey)
+      ).length;
+
+      if (count === 0) return;
+
+      const menu = document.createElement("div");
+      menu.className = "ctx-menu";
+      menu.style.left = e.clientX + "px";
+      menu.style.top = e.clientY + "px";
+
+      const item = document.createElement("div");
+      item.className = "ctx-menu-item ctx-menu-delete";
+      item.innerHTML = `<span class="ctx-menu-delete-icon">&#x2716;</span> <span>Disconnect ${count > 1 ? `all ${count}` : ""}</span>`;
+      item.addEventListener("click", () => {
+        this._edges = this._edges.filter(edge =>
+          !((portType === "output" && edge.from === node.id && edge.fromPort === portKey) ||
+            (portType === "input" && edge.to === node.id && edge.toPort === portKey))
+        );
+        this._renderConnections();
+        menu.remove();
+      });
+      menu.appendChild(item);
+      document.body.appendChild(menu);
+
+      const hostRect = this.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
+      if (menuRect.right > hostRect.right) menu.style.left = (e.clientX - menuRect.width) + "px";
+      if (menuRect.bottom > hostRect.bottom) menu.style.top = (e.clientY - menuRect.height) + "px";
+
+      const dismiss = () => { menu.remove(); document.removeEventListener("click", dismiss); };
+      document.addEventListener("click", dismiss);
+    });
+  }
+
   /** Position port dots vertically, centered in the node body */
   _layoutPorts(node) {
     const el = node._el;
     if (!el) return;
+
     const header = el.querySelector(".node-header");
     const body = el.querySelector(".node-body");
     const headerH = header ? header.offsetHeight : 22;
@@ -1105,6 +1205,20 @@ class TbNodeEditor extends HTMLElement {
       const idx = parseInt(port.dataset.portIndex) || 0;
       port.style.top = (startY + idx * portSpacing) + "px";
     }
+  }
+
+  /** Emit camera config change so parent component can update surface element */
+  _emitCameraConfigChange(node, changeType) {
+    this.dispatchEvent(new CustomEvent("camera-config-change", {
+      bubbles: true,
+      detail: { ...node.config, changeType },
+    }));
+    this._emitChange();
+  }
+
+  /** Generic change notification for config persistence */
+  _emitChange() {
+    this.dispatchEvent(new CustomEvent("circuitry-data-change", { bubbles: true }));
   }
 
   /** Get canvas-space center of a port element by reading its actual rendered position */
@@ -1163,12 +1277,14 @@ class TbNodeEditor extends HTMLElement {
     const names = {
       lever: "Lever",
       adapter: "Adapter",
+      screen: "Screen",
       "surface-led": "LED",
       "surface-toggle": "Toggle",
       "surface-dial": "Dial",
       "surface-label": "Label",
       "surface-alert": "Alert",
       "surface-rainbow": "Rainbow",
+      "surface-camera": "Camera",
     };
     return names[type] || type;
   }
@@ -1176,6 +1292,7 @@ class TbNodeEditor extends HTMLElement {
   _nodeHeaderClass(type) {
     if (type === "lever") return "output";    // amber — can read & write
     if (type === "adapter") return "input";   // green — read-only signal
+    if (type === "screen") return "output";   // amber — receives pixel stream
     if (type.startsWith("surface-")) return "transform"; // blue — surface component
     return "input";
   }
@@ -1190,6 +1307,8 @@ class TbNodeEditor extends HTMLElement {
         return { inputs: ["set"], outputs: ["state"] };
       case "adapter":
         return { inputs: [], outputs: ["state"] };
+      case "screen":
+        return { inputs: ["stream"], outputs: [] };
       default:
         return { inputs: ["in"], outputs: ["out"] };
     }
@@ -1242,6 +1361,39 @@ class TbNodeEditor extends HTMLElement {
             <option value="medium"${size === "medium" ? " selected" : ""}>medium</option>
             <option value="large"${size === "large" ? " selected" : ""}>large</option>
           </select>
+        </div>`;
+    }
+    if (node.type === "surface-camera") {
+      const label = node.config?.label || node.config?.surfaceId || "—";
+      const fps = node.config?.fps || DEFAULT_FPS;
+      const threshold = node.config?.threshold ?? DEFAULT_THRESHOLD;
+      return `
+        <span style="color:#60a0ff;">${label}</span>
+        <div class="node-param-row">
+          <button class="camera-btn camera-connect-btn">&#9654; Connect Camera</button>
+        </div>
+        <div class="node-param-row">
+          <span class="node-param-label">fps</span>
+          <input class="node-select camera-fps" type="number" min="1" max="30" step="1" value="${fps}" style="width:60px;" />
+        </div>
+        <div class="node-param-row">
+          <span class="node-param-label">threshold</span>
+          <input class="node-select camera-threshold" type="number" min="0" max="255" step="1" value="${threshold}" style="width:60px;" />
+        </div>`;
+    }
+    if (node.type === "screen") {
+      const screenId = node.config?.screenId || "";
+      const w = node.config?._screenWidth || 0;
+      const h = node.config?._screenHeight || 0;
+      const count = node.config?._pixelCount || 0;
+      const resText = w && h ? `${w}\u00d7${h}` : "no pixels";
+      return `
+        <div class="node-param-row">
+          <span class="node-param-label">id</span>
+          <input class="node-select screen-id-input" type="text" value="${screenId.replace(/"/g, '&quot;')}" placeholder="default" style="width:80px;" />
+        </div>
+        <div class="node-param-row" style="color:#555;font-size:0.5rem;">
+          ${resText} (${count} px)
         </div>`;
     }
     if (node.type === "surface-rainbow") {

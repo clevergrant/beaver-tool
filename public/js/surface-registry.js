@@ -149,3 +149,32 @@ SurfaceComponents.register({
     };
   },
 });
+
+// --- Camera Display ---
+SurfaceComponents.register({
+  type: "camera-display",
+  name: "Camera Display",
+  icon: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="1.5" fill="#1a1a18" stroke="#555" stroke-width="1.2"/><rect x="3" y="5" width="10" height="6" rx="0.5" fill="#0a0a0a"/><circle cx="8" cy="8" r="2" fill="none" stroke="#30ff60" stroke-width="0.8" opacity="0.5"/><circle cx="8" cy="8" r="0.8" fill="#30ff60" opacity="0.6"/></svg>',
+  category: "display",
+  width: 6,
+  height: 6,
+  resizable: true,
+  factory(id, gridX, gridY) {
+    return {
+      id,
+      name: "Camera Display",
+      x: gridX,
+      y: gridY,
+      minWidth: 4,
+      minHeight: 4,
+      color: "#1a1a18",
+      surface: [{
+        type: "camera",
+        x: 0, y: 0,
+        width: 6, height: 6,
+        props: { fps: String(DEFAULT_FPS), threshold: String(DEFAULT_THRESHOLD) },
+      }],
+      circuitry: { nodes: [], edges: [] },
+    };
+  },
+});
