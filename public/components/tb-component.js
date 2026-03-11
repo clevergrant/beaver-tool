@@ -243,7 +243,7 @@ class TbComponent extends HTMLElement {
           background-image: radial-gradient(circle, rgba(0,0,0,0.15) 2px, transparent 2px);
           background-size: var(--cell-size) var(--cell-size);
           pointer-events: none;
-          z-index: 5;
+          z-index: 0;
         }
 
         /* ── Circuitry View ── */
