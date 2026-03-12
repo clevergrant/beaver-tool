@@ -8,7 +8,7 @@
 #endif
 #define TimberbornToolPublisher "clevergrant"
 #define TimberbornToolURL "https://github.com/clevergrant/beaver-tool"
-#define TimberbornToolExeName "tb.cmd"
+#define TimberbornToolExeName "beavers.cmd"
 
 [Setup]
 AppId={{E7A3F2B1-9C4D-4E6F-8A1B-3D5C7E9F0A2B}

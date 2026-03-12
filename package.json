@@ -4,19 +4,21 @@
   "private": true,
   "license": "MIT",
   "bin": {
-    "tb": "./bin/tb.js"
+    "beavers": "./build/bin/tb.js"
   },
-  "version": "1.1.1",
+  "version": "2.0.0",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.frontend.json",
+    "build": "tsc && vite build",
     "build:backend": "tsc",
-    "build:frontend": "tsc -p tsconfig.frontend.json",
+    "build:frontend": "vite build",
     "start": "node build/server.js",
-    "dev": "npx nodemon --exec \"tsc && node build/server.js\" --ext ts",
-    "tb": "node build/bin/tb.js",
+    "dev": "vite --config vite.config.ts",
+    "dev:frontend": "vite --config vite.config.ts",
+    "dev:backend": "tsc --watch",
+    "beavers": "node build/bin/tb.js",
     "build:dist": "node installer/build.js"
   },
   "dependencies": {
@@ -27,6 +29,8 @@
   "devDependencies": {
     "@types/node": "^25.4.0",
     "@types/ws": "^8.18.1",
-    "typescript": "^5.9.3"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
   }
 }

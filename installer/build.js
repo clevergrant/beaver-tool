@@ -9,7 +9,7 @@
  *   2. Downloads portable node.exe (if not cached)
  *   3. Copies project files
  *   4. Runs npm install --production in dist/
- *   5. Copies tb.cmd wrapper
+ *   5. Copies beavers.cmd wrapper
  *
  * After running, compile the installer:
  *   iscc installer/setup.iss
@@ -28,8 +28,10 @@ const NODE_VERSION = "22.14.0";
 const NODE_URL = `https://nodejs.org/dist/v${NODE_VERSION}/win-x64/node.exe`;
 const NODE_CACHED = path.join(CACHE, `node-${NODE_VERSION}.exe`);
 
-const COPY_DIRS = ["bin", "lib", "public", "assets"];
-const COPY_FILES = ["server.js", "package.json", "package-lock.json"];
+const BUILD = path.join(ROOT, "build");
+const COPY_DIRS = [{ src: "src/public", dest: "public" }, { src: "assets", dest: "assets" }];
+const COPY_BUILD_DIRS = ["bin", "lib"];
+const COPY_FILES = ["package.json", "package-lock.json"];
 
 // --- Helpers ---
 
@@ -111,12 +113,25 @@ async function main() {
 
   // 3. Copy project files
   console.log("[3/5] Copying project files...");
-  for (const dir of COPY_DIRS) {
-    const src = path.join(ROOT, dir);
+  for (const entry of COPY_DIRS) {
+    const src = path.join(ROOT, entry.src);
+    if (fs.existsSync(src)) {
+      copyDirSync(src, path.join(DIST, entry.dest));
+      console.log(`  ${entry.src}/ -> ${entry.dest}/`);
+    }
+  }
+  // Copy compiled JS from build/
+  for (const dir of COPY_BUILD_DIRS) {
+    const src = path.join(BUILD, dir);
     if (fs.existsSync(src)) {
       copyDirSync(src, path.join(DIST, dir));
-      console.log(`  ${dir}/`);
+      console.log(`  build/${dir}/ -> ${dir}/`);
     }
+  }
+  const serverSrc = path.join(BUILD, "server.js");
+  if (fs.existsSync(serverSrc)) {
+    fs.copyFileSync(serverSrc, path.join(DIST, "server.js"));
+    console.log("  build/server.js -> server.js");
   }
   for (const file of COPY_FILES) {
     const src = path.join(ROOT, file);
@@ -133,9 +148,9 @@ async function main() {
     stdio: "inherit",
   });
 
-  // 5. Copy tb.cmd wrapper
-  console.log("[5/5] Adding tb.cmd wrapper...");
-  fs.copyFileSync(path.join(__dirname, "tb.cmd"), path.join(DIST, "tb.cmd"));
+  // 5. Copy beavers.cmd wrapper
+  console.log("[5/5] Adding beavers.cmd wrapper...");
+  fs.copyFileSync(path.join(__dirname, "beavers.cmd"), path.join(DIST, "beavers.cmd"));
 
   // Summary
   const size = getTotalSize(DIST);

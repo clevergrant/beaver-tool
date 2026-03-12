@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timberborn Mission Control</title>
+</head>
+<body>
+
+  <!-- HEADER STRIP -->
+  <div class="header-strip">
+    <div class="header-title">Timberborn Colony Control</div>
+    <div class="header-indicators">
+      <div class="jewel-indicator">
+        <tb-led id="conn-led" color="red" size="10"></tb-led>
+        <span id="conn-text">Link Down</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit FAB (dashboard only) -->
+  <button class="edit-fab" id="edit-btn" title="Toggle grid editing mode">
+    <span id="edit-icon">&#128208;</span>
+  </button>
+
+  <!-- GRID -->
+  <div id="grid-container">
+    <div id="grid-viewport"></div>
+  </div>
+
+  <script type="module" src="/js/app.ts"></script>
+</body>
+</html>
