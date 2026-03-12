@@ -8,7 +8,7 @@
  *   1. Cleans and creates dist/
  *   2. Downloads portable node.exe (if not cached)
  *   3. Copies project files
- *   4. Runs npm install --production in dist/
+ *   4. Runs bun install --production in dist/
  *   5. Copies beavers.cmd wrapper
  *
  * After running, compile the installer:
@@ -31,7 +31,7 @@ const NODE_CACHED = path.join(CACHE, `node-${NODE_VERSION}.exe`);
 const BUILD = path.join(ROOT, "build");
 const COPY_DIRS = [{ src: "src/public", dest: "public" }, { src: "assets", dest: "assets" }];
 const COPY_BUILD_DIRS = ["bin", "lib"];
-const COPY_FILES = ["package.json", "package-lock.json"];
+const COPY_FILES = ["package.json", "bun.lock"];
 
 // --- Helpers ---
 
@@ -141,9 +141,9 @@ async function main() {
     }
   }
 
-  // 4. npm install --production
+  // 4. bun install --production
   console.log("[4/5] Installing production dependencies...");
-  execSync("npm install --omit=dev", {
+  execSync("bun install --production", {
     cwd: DIST,
     stdio: "inherit",
   });

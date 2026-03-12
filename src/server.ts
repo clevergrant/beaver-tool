@@ -48,10 +48,10 @@ onGameStatus((connected: boolean) => {
   status.game = connected;
 });
 
-/** Resolve static dir: prefer Vite build output, fall back to source public/ */
+/** Resolve static dir: prefer build output, fall back to source public/ */
 function resolveStaticDir(): string {
-  const viteBuild = path.join(__dirname, "..", "dist", "public");
-  if (fs.existsSync(path.join(viteBuild, "index.html"))) return viteBuild;
+  const buildDir = path.join(__dirname, "..", "dist", "public");
+  if (fs.existsSync(path.join(buildDir, "index.html"))) return buildDir;
   return path.join(__dirname, "..", "src", "public");
 }
 

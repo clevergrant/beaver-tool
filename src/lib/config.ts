@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 // --- Deployment config (from .env) ---
 export const PORT: number          = parseInt(process.env.TB_PORT || "") || 80;
 export const GAME_API: string      = process.env.TB_GAME_API || "http://localhost:8080/api";

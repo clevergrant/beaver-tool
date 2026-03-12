@@ -7,7 +7,7 @@
  */
 
 // --- Module imports ---
-import "../css/styles.scss"
+import "../css/styles.css"
 import type { ComponentData, SurfaceElementConfig } from "../types"
 import { initContextMenu } from "./context-menu"
 import {

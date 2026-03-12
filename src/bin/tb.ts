@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
@@ -22,7 +22,7 @@ ${c.bold}Server:${c.reset}
   ${c.cyan}status${c.reset}             Show server & game status
   ${c.cyan}live${c.reset}               Enter full-screen live monitoring view
   ${c.cyan}log${c.reset}                Show recent server log
-  ${c.cyan}dev${c.reset}                Start the Vite dev server (with backend)
+  ${c.cyan}dev${c.reset}                Start the dev server (with backend)
 
 ${c.bold}Devices:${c.reset}
   ${c.cyan}devices${c.reset}            List all levers and adapters
@@ -79,8 +79,8 @@ async function main(): Promise<void> {
 
 function cmdDev(): void {
   const root = path.resolve(__dirname, "../..");
-  console.log(`${c.cyan}Starting Vite dev server...${c.reset}`);
-  execSync("npx vite --config vite.config.ts", { cwd: root, stdio: "inherit" });
+  console.log(`${c.cyan}Starting dev server...${c.reset}`);
+  execSync("bun dev.ts", { cwd: root, stdio: "inherit" });
 }
 
 async function cmdStart(): Promise<void> {
@@ -99,11 +99,11 @@ async function cmdStart(): Promise<void> {
       execSync("beavers help", { stdio: "pipe" });
     } catch {
       console.log(`${c.dim}Linking beavers command...${c.reset}`);
-      execSync("npm link", { cwd: root, stdio: "inherit" });
+      execSync("bun link", { cwd: root, stdio: "inherit" });
     }
 
     console.log(`${c.dim}Building...${c.reset}`);
-    execSync("npm run build", { cwd: root, stdio: "inherit" });
+    execSync("bun run build", { cwd: root, stdio: "inherit" });
   }
 
   const pid = daemon.spawnServer();

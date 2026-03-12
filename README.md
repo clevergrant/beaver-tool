@@ -24,7 +24,7 @@ A standalone Windows installer is available on the [Releases](https://github.com
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) v18+ (or use the Windows installer which bundles Node)
+- [Bun](https://bun.sh/) v1.3+ (or use the Windows installer which bundles a runtime)
 - Timberborn running with HTTP Lever / HTTP Adapter buildings placed
 
 ## Setup - Developer
@@ -34,7 +34,7 @@ A standalone Windows installer is available on the [Releases](https://github.com
 ```bash
 git clone https://github.com/clevergrant/beaver-tool.git
 cd beaver-tool
-npm install
+bun install
 ```
 
 ### Configure
@@ -54,13 +54,17 @@ cp .env.example .env
 ### Run
 
 ```bash
-# Start the server
-npm start
+# Development (with HMR)
+bun run dev
+
+# Production
+bun run build
+bun run start
 
 # Or use the CLI
-node bin/tb.js start    # start as background daemon
-node bin/tb.js live     # full-screen TUI dashboard
-node bin/tb.js stop     # stop the daemon
+beavers start    # start as background daemon
+beavers live     # full-screen TUI dashboard
+beavers stop     # stop the daemon
 ```
 
 Then open `http://localhost:3000` (or your configured port) in a browser.
