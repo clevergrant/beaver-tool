@@ -8,7 +8,7 @@
 
 // --- Module imports ---
 import "../css/styles.scss"
-import type { ComponentData } from "../types"
+import type { ComponentData, SurfaceElementConfig } from "../types"
 import { initContextMenu } from "./context-menu"
 import {
 	COMP_MIN_HEIGHT,
@@ -270,23 +270,22 @@ function updateComponentElement(comp: ComponentData): void {
 
 // --- Surface Element Builder ---
 
-function buildSurfaceElements(parentEl: any, elements: any[]): void {
+function buildSurfaceElements(parentEl: any, elements: SurfaceElementConfig[]): void {
 	for (let i = 0; i < elements.length; i++) {
 		const elem = elements[i]
 		const child = createSurfaceElement(elem, i)
 		if (child) {
 			// Set surface-id from config if available, otherwise auto-generated
-			if (elem.surfaceId) {
-				child.setAttribute("surface-id", elem.surfaceId)
+			if (elem.id) {
+				child.setAttribute("surface-id", elem.id)
 			}
 
 			// Use the component's inner surface grid
 			parentEl.addSurfaceElement(child, {
 				x: elem.x || 0,
 				y: elem.y || 0,
-				width: elem.width || 2,
-				height: elem.height || 2,
-				resizable: elem.resizable !== false,
+				width: elem.w || 2,
+				height: elem.h || 2,
 			})
 		}
 	}
@@ -319,11 +318,11 @@ function applySurfaceProps(el: HTMLElement, props: Record<string, any>): void {
 	if (props.binding) (el as HTMLElement).dataset.binding = props.binding
 }
 
-function createSurfaceElement(elem: any, index: number): HTMLElement | null {
-	const props: Record<string, any> = elem.props || {}
+function createSurfaceElement(elem: SurfaceElementConfig, index: number): HTMLElement | null {
+	const props: Record<string, any> = elem.attrs || {}
 	let el: any
 
-	switch (elem.type) {
+	switch (elem.tag) {
 		case "led":
 			el = document.createElement("tb-led")
 			break
@@ -391,7 +390,7 @@ function createSurfaceElement(elem: any, index: number): HTMLElement | null {
 			})
 			break
 		default:
-			console.warn(`Unknown surface element type: ${elem.type}`)
+			console.warn(`Unknown surface element type: ${elem.tag}`)
 			return null
 	}
 
@@ -713,9 +712,9 @@ function persistSurfaceColor(
 		componentData.get(compId) || Store.readComponent(compId)
 	if (!comp?.surface) return
 	for (const s of comp.surface) {
-		if ((s as any).surfaceId === surfaceId) {
-			if (!(s as any).props) (s as any).props = {}
-			;(s as any).props.color = color
+		if (s.id === surfaceId) {
+			if (!s.attrs) s.attrs = {}
+			s.attrs.color = color
 			break
 		}
 	}

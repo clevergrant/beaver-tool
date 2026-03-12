@@ -1,15 +1,34 @@
-export interface ComponentData {
-  id: string;
-  name?: string;
+export interface GridRect {
   x: number;
   y: number;
   w: number;
   h: number;
-  color?: string;
-  componentType?: string;
-  surface?: SurfaceElementConfig[];
-  circuitry?: { nodes: CircuitryNodeConfig[]; edges: CircuitryEdgeConfig[] };
-  [key: string]: unknown;
+}
+
+export interface CircuitryPorts {
+  inputs: string[];
+  outputs: string[];
+}
+
+export interface CircuitryNode {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  config?: Record<string, unknown>;
+  _el?: HTMLDivElement | null;
+}
+
+export interface CircuitryEdge {
+  from: string;
+  to: string;
+  fromPort: string;
+  toPort: string;
+}
+
+export interface CircuitryData {
+  nodes: CircuitryNode[];
+  edges: CircuitryEdge[];
 }
 
 export interface SurfaceElementConfig {
@@ -20,23 +39,19 @@ export interface SurfaceElementConfig {
   w: number;
   h: number;
   attrs?: Record<string, string>;
-  [key: string]: unknown;
 }
 
-export interface CircuitryNodeConfig {
+export interface ComponentData {
   id: string;
-  type: string;
+  name?: string;
   x: number;
   y: number;
-  [key: string]: unknown;
-}
-
-export interface CircuitryEdgeConfig {
-  from: string;
-  to: string;
-  fromPort: string;
-  toPort: string;
-  [key: string]: unknown;
+  w: number;
+  h: number;
+  color?: string;
+  componentType?: string;
+  surface?: SurfaceElementConfig[];
+  circuitry?: CircuitryData;
 }
 
 export interface SurfaceComponentDef {

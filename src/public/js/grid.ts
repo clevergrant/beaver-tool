@@ -9,13 +9,10 @@
  */
 
 import { editorState } from './editor-state';
+import type { GridRect } from '../types';
 
-export interface GridComponentEntry {
+export interface GridComponentEntry extends GridRect {
   el: HTMLElement;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
   minW: number;
   minH: number;
   maxW: number | null;
@@ -36,7 +33,6 @@ export interface GridComponentConfig {
   height?: number;
   resizable?: boolean;
   aspectRatio?: number | null;
-  [key: string]: unknown;
 }
 
 export interface GridOpts {
@@ -44,7 +40,7 @@ export interface GridOpts {
   listenToWindowResize?: boolean;
   onComponentAdded?: (id: string, el: HTMLElement) => void;
   onComponentRemoved?: (id: string) => void;
-  onLayoutChange?: (id: string, layout: { x: number; y: number; w: number; h: number }) => void;
+  onLayoutChange?: (id: string, layout: GridRect) => void;
   bare?: boolean;
 }
 
@@ -70,7 +66,7 @@ export class Grid {
   storageKey: string | null;
   onComponentAdded: ((id: string, el: HTMLElement) => void) | null;
   onComponentRemoved: ((id: string) => void) | null;
-  onLayoutChange: ((id: string, layout: { x: number; y: number; w: number; h: number }) => void) | null;
+  onLayoutChange: ((id: string, layout: GridRect) => void) | null;
   bare: boolean;
   components: Map<string, GridComponentEntry>;
   editing: boolean;
@@ -82,7 +78,7 @@ export class Grid {
   private _resizeEdge: ResizeEdge | null;
   private _resizeStart: ResizeStart;
   private _resizeObserver: ResizeObserver | null;
-  private _savedLayout: Record<string, { x: number; y: number; w: number; h: number }>;
+  private _savedLayout: Record<string, GridRect>;
 
   /**
    * @param containerEl - Scrollable container
@@ -271,7 +267,7 @@ export class Grid {
       }
     }
     if (!this.storageKey) return;
-    const layout: Record<string, { x: number; y: number; w: number; h: number }> = {};
+    const layout: Record<string, GridRect> = {};
     for (const [id, comp] of this.components) {
       layout[id] = { x: comp.x, y: comp.y, w: comp.w, h: comp.h };
     }
@@ -279,7 +275,7 @@ export class Grid {
   }
 
   /** Load layout from localStorage */
-  _loadLayout(): Record<string, { x: number; y: number; w: number; h: number }> {
+  _loadLayout(): Record<string, GridRect> {
     if (!this.storageKey) return {};
     try {
       return JSON.parse(localStorage.getItem(this.storageKey) as string) || {};

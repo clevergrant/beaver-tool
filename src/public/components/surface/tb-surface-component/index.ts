@@ -1,7 +1,5 @@
-export interface CircuitryPorts {
-  inputs: string[];
-  outputs: string[];
-}
+import type { CircuitryPorts } from '../../../types';
+export type { CircuitryPorts };
 
 export interface SizeConstraints {
   minW: number;

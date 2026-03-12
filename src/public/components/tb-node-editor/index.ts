@@ -1,24 +1,9 @@
 import styles from './tb-node-editor.scss';
 import { DEFAULT_FPS, DEFAULT_THRESHOLD } from '../surface/tb-camera';
+import type { CircuitryNode, CircuitryEdge, CircuitryData, CircuitryPorts } from '../../types';
 
 const sheet = new CSSStyleSheet();
 sheet.replaceSync(styles);
-
-interface CircuitryNode {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  config?: Record<string, any>;
-  _el?: HTMLDivElement | null;
-}
-
-interface CircuitryEdge {
-  from: string;
-  to: string;
-  fromPort: string;
-  toPort: string;
-}
 
 interface ConnectingState {
   nodeId: string;
@@ -32,28 +17,6 @@ interface SelectionRect {
   startX: number;
   startY: number;
   _shift?: boolean;
-}
-
-interface NodePorts {
-  inputs: string[];
-  outputs: string[];
-}
-
-interface CircuitryData {
-  nodes: Array<{
-    id: string;
-    type: string;
-    x: number;
-    y: number;
-    config: Record<string, any>;
-    _el?: HTMLDivElement | null;
-  }>;
-  edges: Array<{
-    from: string;
-    fromPort: string;
-    to: string;
-    toPort: string;
-  }>;
 }
 
 class TbNodeEditor extends HTMLElement {
@@ -571,7 +534,7 @@ class TbNodeEditor extends HTMLElement {
     const cy = ((-this._pan.y + this._canvas.clientHeight / 2) / this._zoom) | 0;
 
     const id = `node-${this._nextNodeId++}`;
-    const config: Record<string, any> = {};
+    const config: Record<string, unknown> = {};
     if (type === "screen" && deviceName != null) {
       config.screenId = deviceName || null;
     } else if (deviceName) {
@@ -603,7 +566,7 @@ class TbNodeEditor extends HTMLElement {
     const headerClass = this._nodeHeaderClass(node.type);
     const displayName = this._nodeDisplayName(node.type);
 
-    const ports = this._getNodePorts(node.type, node.config);
+    const ports = this._getCircuitryPorts(node.type, node.config);
     const surfaceManaged = this._isSurfaceManaged(node);
 
     let portsHTML = "";
@@ -981,7 +944,7 @@ class TbNodeEditor extends HTMLElement {
   }
 
   /** Public API: add a node from external data (e.g. surface registration) */
-  addExternalNode(nodeData: { id: string; type: string; x: number; y: number; config?: Record<string, any> }): void {
+  addExternalNode(nodeData: Omit<CircuitryNode, '_el'>): void {
     if (this._nodes.find(n => n.id === nodeData.id)) return;
     const node: CircuitryNode = { ...nodeData, _el: null };
     this._nodes.push(node);
@@ -1041,10 +1004,10 @@ class TbNodeEditor extends HTMLElement {
     return "input";
   }
 
-  private _getNodePorts(type: string, config?: Record<string, any>): NodePorts {
+  private _getCircuitryPorts(type: string, config?: Record<string, unknown>): CircuitryPorts {
     // Surface-managed nodes carry their port definitions in config
     if (config?.ports) {
-      return config.ports as NodePorts;
+      return config.ports as CircuitryPorts;
     }
     switch (type) {
       case "lever":

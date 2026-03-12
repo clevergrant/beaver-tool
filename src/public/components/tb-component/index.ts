@@ -2,6 +2,7 @@ import styles from './tb-component.scss';
 import { TbSurfaceComponent } from '../surface/tb-surface-component';
 import { Grid, CELL_SIZE, COMP_MIN_WIDTH, COMP_MIN_HEIGHT } from '../../js/grid';
 import { editorState } from '../../js/editor-state';
+import type { SurfaceElementConfig, CircuitryData, CircuitryNode, CircuitryEdge } from '../../types';
 
 const sheet = new CSSStyleSheet();
 sheet.replaceSync(styles);
@@ -64,7 +65,7 @@ interface SavedGridStyles {
   transition: string;
 }
 
-interface GridRect {
+interface EditorRect {
   left: number;
   top: number;
   width: number;
@@ -78,28 +79,11 @@ interface OrigFrame {
   top: number;
 }
 
-interface SurfaceConfigEntry {
-  type: string;
-  surfaceId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  props: Record<string, string>;
-}
 
 interface ClipboardData {
-  surface: {
-    type: string;
-    surfaceId: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    props: Record<string, string>;
-  };
-  nodes: any[];
-  edges: any[];
+  surface: SurfaceElementConfig;
+  nodes: CircuitryNode[];
+  edges: CircuitryEdge[];
 }
 
 interface ElementTypeEntry {
@@ -155,7 +139,7 @@ class TbComponent extends HTMLElement {
   _surfaceMenu: HTMLElement | null = null;
   _propsPanel: HTMLElement | null = null;
   _savedGridStyles: SavedGridStyles | null = null;
-  _gridRect!: GridRect;
+  _gridRect!: EditorRect;
   _origFrame!: OrigFrame;
 
   _dismissSurfaceMenu!: () => void;
@@ -580,32 +564,24 @@ class TbComponent extends HTMLElement {
    * Get the current surface layout as a serializable config array.
    * Used for persisting surface element positions.
    */
-  _getSurfaceConfig(): SurfaceConfigEntry[] {
+  _getSurfaceConfig(): SurfaceElementConfig[] {
     if (!this._surfaceGrid) return [];
-    const result: SurfaceConfigEntry[] = [];
+    const result: SurfaceElementConfig[] = [];
     for (const [id, comp] of this._surfaceGrid.components) {
       const el = comp.el;
-      const type = el.tagName.toLowerCase().replace("tb-", "");
-      const entry: SurfaceConfigEntry = {
-        type,
-        surfaceId: id,
-        x: comp.x,
-        y: comp.y,
-        width: comp.w,
-        height: comp.h,
-        props: {},
-      };
+      const tag = el.tagName.toLowerCase().replace("tb-", "");
+      const attrs: Record<string, string> = {};
 
       // Capture relevant attributes as props
       for (const attr of el.attributes) {
         if (attr.name === "surface-id" || attr.name === "class" || attr.name === "style") continue;
-        entry.props[attr.name] = attr.value;
+        attrs[attr.name] = attr.value;
       }
       if ((el as HTMLElement).dataset.binding) {
-        entry.props.binding = (el as HTMLElement).dataset.binding!;
+        attrs.binding = (el as HTMLElement).dataset.binding!;
       }
 
-      result.push(entry);
+      result.push({ tag, id, x: comp.x, y: comp.y, w: comp.w, h: comp.h, attrs });
     }
     return result;
   }
@@ -619,36 +595,37 @@ class TbComponent extends HTMLElement {
     if (!comp) return;
 
     const el = comp.el;
-    const type = el.tagName.toLowerCase().replace("tb-", "");
-    const surface: ClipboardData["surface"] = {
-      type,
-      surfaceId,
-      x: comp.x,
-      y: comp.y,
-      width: comp.w,
-      height: comp.h,
-      props: {},
-    };
+    const tag = el.tagName.toLowerCase().replace("tb-", "");
+    const attrs: Record<string, string> = {};
     for (const attr of el.attributes) {
       if (attr.name === "surface-id" || attr.name === "class" || attr.name === "style") continue;
-      surface.props[attr.name] = attr.value;
+      attrs[attr.name] = attr.value;
     }
     if ((el as HTMLElement).dataset.binding) {
-      surface.props.binding = (el as HTMLElement).dataset.binding!;
+      attrs.binding = (el as HTMLElement).dataset.binding!;
     }
+    const surface: SurfaceElementConfig = {
+      tag,
+      id: surfaceId,
+      x: comp.x,
+      y: comp.y,
+      w: comp.w,
+      h: comp.h,
+      attrs,
+    };
 
     // Gather circuitry: the surface node + all connected nodes and edges
     const circuitry = this._circuitryData || { nodes: [], edges: [] };
     const surfaceNodeId = "surface-" + surfaceId;
     const connectedEdges = circuitry.edges.filter(
-      (e: any) => e.from === surfaceNodeId || e.to === surfaceNodeId
+      e => e.from === surfaceNodeId || e.to === surfaceNodeId
     );
     const connectedNodeIds = new Set<string>([surfaceNodeId]);
     for (const edge of connectedEdges) {
       connectedNodeIds.add(edge.from);
       connectedNodeIds.add(edge.to);
     }
-    const nodes = circuitry.nodes.filter((n: any) => connectedNodeIds.has(n.id));
+    const nodes = circuitry.nodes.filter(n => connectedNodeIds.has(n.id));
 
     sessionStorage.setItem("tb-clipboard", JSON.stringify({
       surface,
@@ -670,12 +647,12 @@ class TbComponent extends HTMLElement {
     const src = clip.surface;
 
     // Check if position is free
-    if (!this._isSurfaceAreaFree(gridX, gridY, src.width, src.height, this._editorItems!)) return;
+    if (!this._isSurfaceAreaFree(gridX, gridY, src.w, src.h, this._editorItems!)) return;
 
     // Create the new surface element
-    const newEl = document.createElement("tb-" + src.type);
-    // Apply props as attributes
-    for (const [key, val] of Object.entries(src.props || {})) {
+    const newEl = document.createElement("tb-" + src.tag);
+    // Apply attrs as attributes
+    for (const [key, val] of Object.entries(src.attrs || {})) {
       if (key === "binding") {
         (newEl as HTMLElement).dataset.binding = val;
       } else {
@@ -686,14 +663,14 @@ class TbComponent extends HTMLElement {
     this.addSurfaceElement(newEl, {
       x: gridX,
       y: gridY,
-      width: src.width,
-      height: src.height,
+      width: src.w,
+      height: src.h,
     });
 
     const newSid = newEl.getAttribute("surface-id")!;
     const newComp = this._surfaceGrid!.getComponent(newSid);
-    const actualW = newComp ? newComp.w : src.width;
-    const actualH = newComp ? newComp.h : src.height;
+    const actualW = newComp ? newComp.w : src.w;
+    const actualH = newComp ? newComp.h : src.h;
     const handle = this._createEditorHandle(
       newSid, gridX, gridY, actualW, actualH,
       newComp ? newComp.resizable : true, compId
@@ -705,13 +682,13 @@ class TbComponent extends HTMLElement {
     });
 
     // Remap and add circuitry nodes and edges
-    const oldSurfaceNodeId = "surface-" + src.surfaceId;
+    const oldSurfaceNodeId = "surface-" + src.id;
     const newSurfaceNodeId = "surface-" + newSid;
     const nodeIdMap: Record<string, string> = { [oldSurfaceNodeId]: newSurfaceNodeId };
 
     // Merge the original surface node's config into the auto-registered one
     // (addSurfaceElement creates a bare node; we need to preserve size, orientation, etc.)
-    const origSurfaceNode = (clip.nodes || []).find((n: any) => n.id === oldSurfaceNodeId);
+    const origSurfaceNode = (clip.nodes || []).find(n => n.id === oldSurfaceNodeId);
     if (origSurfaceNode) {
       const registeredNode = this._circuitryData.nodes.find((n: any) => n.id === newSurfaceNodeId);
       if (registeredNode) {
