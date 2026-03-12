@@ -11,7 +11,7 @@ Timberborn 1.0 exposes a REST API at `http://localhost:8080/api/` (or whichever 
 
 This tool connects to that API to monitor and control your colony's automation systems from a browser, the CLI, or Discord.
 
-## Setup
+## Setup - User
 
 ### Windows Installer
 
@@ -26,6 +26,8 @@ A standalone Windows installer is available on the [Releases](https://github.com
 
 - [Node.js](https://nodejs.org/) v18+ (or use the Windows installer which bundles Node)
 - Timberborn running with HTTP Lever / HTTP Adapter buildings placed
+
+## Setup - Developer
 
 ### Install
 
