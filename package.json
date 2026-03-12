@@ -11,14 +11,22 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js",
-    "dev": "npx nodemon server.js",
-    "tb": "node bin/tb.js",
+    "build": "tsc && tsc -p tsconfig.frontend.json",
+    "build:backend": "tsc",
+    "build:frontend": "tsc -p tsconfig.frontend.json",
+    "start": "node build/server.js",
+    "dev": "npx nodemon --exec \"tsc && node build/server.js\" --ext ts",
+    "tb": "node build/bin/tb.js",
     "build:dist": "node installer/build.js"
   },
   "dependencies": {
     "discord.js": "^14.25.1",
     "dotenv": "^17.3.1",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
   }
 }
