@@ -7,7 +7,7 @@
  */
 
 // --- Module imports ---
-import "../css/styles.css"
+import "../css/styles.scss"
 import type { ComponentData } from "../types"
 import { initContextMenu } from "./context-menu"
 import {
@@ -19,19 +19,7 @@ import {
 import { Store } from "./store"
 
 // Side-effect imports: register web components and surface component types
-import "../components/shared-styles"
-import "../components/surface/tb-alert"
-import "../components/surface/tb-camera"
-import "../components/surface/tb-color-picker"
-import "../components/surface/tb-dial"
-import "../components/surface/tb-label"
-import "../components/surface/tb-led"
-import "../components/surface/tb-rainbow"
-import "../components/surface/tb-surface-component"
-import "../components/surface/tb-toggle"
-import "../components/tb-color-selector"
-import "../components/tb-component"
-import "../components/tb-node-editor"
+import "../components"
 import "./surface-registry"
 
 type DeviceRecord = Record<

@@ -1,4 +1,8 @@
-import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints, type SurfaceParent } from './tb-surface-component';
+import styles from './tb-color-picker.scss';
+import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints, type SurfaceParent } from '../tb-surface-component';
+
+const sheet = new CSSStyleSheet();
+sheet.replaceSync(styles);
 
 /**
  * <tb-color-picker> — Color picker surface component.
@@ -110,76 +114,8 @@ class TbColorPicker extends TbSurfaceComponent {
     this._previewBar = null;
     this._hexDisplay = null;
 
+    this.shadowRoot!.adoptedStyleSheets = [sheet];
     this.shadowRoot!.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          overflow: visible;
-          position: relative;
-        }
-
-        /* ── Swatch housing (same style as alert lamp) ── */
-
-        .swatch-housing {
-          position: relative;
-          width: 85%;
-          aspect-ratio: 1;
-          max-width: 85%;
-          max-height: 85%;
-          border-radius: 50%;
-          background: radial-gradient(circle at 40% 35%, #4a4a48, #2a2a28);
-          border: 2px solid #555;
-          box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
-          overflow: hidden;
-          flex-shrink: 0;
-          cursor: pointer;
-        }
-
-        .swatch-housing:hover {
-          border-color: #888;
-        }
-
-        .swatch-disc {
-          position: absolute;
-          inset: 10%;
-          border-radius: 50%;
-          border: 1px solid rgba(255,255,255,0.06);
-          transition: background 0.15s;
-        }
-
-        /* Mounting bolts */
-        .bolt {
-          position: absolute;
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 35% 35%, #888, #555);
-          box-shadow: inset 0 0.5px 1px rgba(255,255,255,0.15);
-        }
-        .bolt-tl { top: 2px; left: 2px; }
-        .bolt-tr { top: 2px; right: 2px; }
-        .bolt-bl { bottom: 2px; left: 2px; }
-        .bolt-br { bottom: 2px; right: 2px; }
-
-        .picker-label {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          text-align: center;
-          font-family: 'Share Tech Mono', monospace;
-          font-size: 0.45rem;
-          color: #e8e4d4;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          line-height: 1;
-        }
-      </style>
-
       <div class="swatch-housing">
         <span class="bolt bolt-tl"></span>
         <span class="bolt bolt-tr"></span>

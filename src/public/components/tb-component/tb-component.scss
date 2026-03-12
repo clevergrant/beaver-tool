@@ -1,0 +1,250 @@
+@use '../scss/panel-base';
+@use '../scss/screw-styles' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* -- Editor Mode -- */
+:host(.editing) {
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+}
+
+.surface-view {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+:host(.editing) .surface-view {
+  border-radius: 8px;
+  z-index: 2;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:host(.editing.circuitry-active) .surface-view {
+  transform: translate(100%, -100%);
+}
+
+.surface-screws-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+@include screw-styles(".surface-view", ".surface-screws-bottom", $size: 6, $offset: 4);
+
+.surface-elements {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* -- Editor Backdrop (shadow DOM element hidden; page-level backdrop used instead) -- */
+.editor-backdrop {
+  display: none;
+}
+
+/* -- Editor Handles -- */
+.editor-handles {
+  display: none;
+}
+
+:host(.editing) .editor-handles {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.surface-handle {
+  position: absolute;
+  cursor: grab;
+  border-radius: 3px;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  transition: outline-color 0.15s, box-shadow 0.15s;
+  z-index: 2;
+}
+
+.surface-handle:hover {
+  outline-color: color-mix(in srgb, var(--comp-hl, #ffaa20) 50%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, transparent);
+}
+
+.surface-handle:active {
+  cursor: grabbing;
+}
+
+.surface-handle.no-resize {
+  cursor: grab;
+}
+
+.surface-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, transparent 50%, color-mix(in srgb, var(--comp-hl, #ffaa20) 70%, transparent) 50%);
+  border-radius: 0 0 3px 0;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 3;
+}
+
+.surface-handle:hover .surface-resize-handle,
+.surface-handle.resizing .surface-resize-handle {
+  opacity: 1;
+}
+
+/* -- Ghost Preview -- */
+.editor-ghost {
+  position: absolute;
+  border-radius: 4px;
+  border: 2px dashed color-mix(in srgb, var(--comp-hl, #ffaa20) 60%, transparent);
+  background: color-mix(in srgb, var(--comp-hl, #ffaa20) 8%, transparent);
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 0.15s;
+  display: none;
+}
+
+.editor-ghost.blocked {
+  border-color: rgba(255,68,68,0.6);
+  background: rgba(255,68,68,0.08);
+}
+
+/* -- Properties Panel -- */
+.surface-props-panel {
+  position: absolute;
+  background: #2a2a26;
+  border: 1px solid #5a5a52;
+  border-radius: 4px;
+  padding: 6px 8px;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  min-width: 180px;
+}
+
+.surface-props-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.surface-props-check {
+  accent-color: var(--comp-hl, #ffaa20);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.surface-props-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: #8a8a7a;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+.surface-props-input {
+  flex: 1;
+  background: #1a1a18;
+  border: 1px solid #4a4a42;
+  border-radius: 3px;
+  color: #e0ddd0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  padding: 2px 5px;
+  outline: none;
+  min-width: 0;
+}
+
+.surface-props-input:focus {
+  border-color: var(--comp-hl, #ffaa20);
+}
+
+.surface-props-input:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* -- Grid Dots (editing mode only) -- */
+:host(.editing) .surface-elements::before {
+  content: '';
+  position: absolute;
+  inset: var(--cell-size);
+  background-image: radial-gradient(circle, rgba(0,0,0,0.15) 2px, transparent 2px);
+  background-size: var(--cell-size) var(--cell-size);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* -- Circuitry View -- */
+.circuitry-view {
+  display: none;
+}
+
+:host(.editing) .circuitry-view {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* -- Editor Toolbar -- */
+.editor-toolbar {
+  display: none;
+}
+
+:host(.editing) .editor-toolbar {
+  display: flex;
+  position: absolute;
+  top: -40px;
+  right: 0;
+  z-index: 10;
+  gap: 4px;
+}
+
+.editor-toolbar button {
+  background: #2a2a28;
+  border: none;
+  border-radius: 6px;
+  color: #aaa;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.editor-toolbar button:hover {
+  background: #3a3a36;
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+  transform: translateY(-1px);
+}
+
+.editor-toolbar button.active {
+  background: color-mix(in srgb, var(--comp-hl, #ffaa20) 15%, #2a2a28);
+  color: var(--comp-hl, #ffaa20);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--comp-hl, #ffaa20) 25%, transparent);
+}

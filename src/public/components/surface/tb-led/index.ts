@@ -1,4 +1,8 @@
-import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints } from './tb-surface-component';
+import styles from './tb-led.scss';
+import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints } from '../tb-surface-component';
+
+const sheet = new CSSStyleSheet();
+sheet.replaceSync(styles);
 
 /**
  * <tb-led> — LED indicator surface component.
@@ -30,41 +34,8 @@ class TbLed extends TbSurfaceComponent {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    this.shadowRoot!.adoptedStyleSheets = [sheet];
     this.shadowRoot!.innerHTML = `
-      <style>
-        :host {
-          display: grid;
-          place-items: center;
-        }
-
-        .led {
-          border-radius: 50%;
-          box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-          transition: background 0.3s, box-shadow 0.3s;
-        }
-
-        .led.on {
-          box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
-        }
-
-        .led.pulse {
-          animation: pulse-glow 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-glow {
-          0%, 100% { filter: brightness(1); }
-          50% { filter: brightness(1.3); }
-        }
-
-        .label {
-          font-family: 'Share Tech Mono', monospace;
-          font-size: 0.55rem;
-          color: #e8e4d4;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
-      </style>
       <div class="led"></div>
       <span class="label"></span>
     `;

@@ -7,7 +7,7 @@
 
 import type { ComponentData } from '../types';
 import { SurfaceComponents } from './surface-components';
-import { DEFAULT_FPS, DEFAULT_THRESHOLD } from '../components/surface/tb-camera';
+import { DEFAULT_FPS, DEFAULT_THRESHOLD } from '../components/surface';
 
 // --- LED Indicator ---
 SurfaceComponents.register({

@@ -1,4 +1,8 @@
-import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints } from './tb-surface-component';
+import styles from './tb-rainbow.scss';
+import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints } from '../tb-surface-component';
+
+const sheet = new CSSStyleSheet();
+sheet.replaceSync(styles);
 
 /**
  * <tb-rainbow> — Rainbow button surface component.
@@ -47,107 +51,8 @@ class TbRainbow extends TbSurfaceComponent {
     this._timer = null;
 
     this.attachShadow({ mode: "open" });
+    this.shadowRoot!.adoptedStyleSheets = [sheet];
     this.shadowRoot!.innerHTML = `
-      <style>
-        :host {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 100%;
-          height: 100%;
-          position: relative;
-          cursor: pointer;
-          user-select: none;
-        }
-
-        .housing {
-          position: relative;
-          width: 85%;
-          aspect-ratio: 1;
-          max-width: 85%;
-          max-height: 85%;
-          border-radius: 50%;
-          background: radial-gradient(circle at 40% 35%, #4a4a48, #2a2a28);
-          border: 2px solid #555;
-          box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
-          overflow: hidden;
-          flex-shrink: 0;
-        }
-
-        :host(:hover) .housing {
-          border-color: #888;
-        }
-
-        .rainbow-ring {
-          position: absolute;
-          inset: 3px;
-          border-radius: 50%;
-          background: conic-gradient(
-            #ff4c2e 0deg,
-            #fe792e 45deg,
-            #fdd42c 90deg,
-            #bad015 135deg,
-            #64b53c 180deg,
-            #89d6e8 225deg,
-            #3f5d93 270deg,
-            #ff63a8 315deg,
-            #ff4c2e 360deg
-          );
-          opacity: 0.25;
-          transition: opacity 0.3s;
-        }
-
-        :host([on]) .rainbow-ring {
-          opacity: 1;
-          animation: spin 2s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        .disc {
-          position: absolute;
-          inset: 18%;
-          border-radius: 50%;
-          background: #2a2a28;
-          border: 1px solid rgba(255,255,255,0.06);
-          transition: background 0.15s, box-shadow 0.3s;
-        }
-
-        :host([on]) .disc {
-          box-shadow: 0 0 8px var(--current-color, #ff4c2e);
-        }
-
-        /* Mounting bolts */
-        .bolt {
-          position: absolute;
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 35% 35%, #888, #555);
-          box-shadow: inset 0 0.5px 1px rgba(255,255,255,0.15);
-        }
-        .bolt-tl { top: 2px; left: 2px; }
-        .bolt-tr { top: 2px; right: 2px; }
-        .bolt-bl { bottom: 2px; left: 2px; }
-        .bolt-br { bottom: 2px; right: 2px; }
-
-        .rainbow-label {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          text-align: center;
-          font-family: 'Share Tech Mono', monospace;
-          font-size: 0.45rem;
-          color: #e8e4d4;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          line-height: 1;
-        }
-      </style>
-
       <div class="housing">
         <span class="bolt bolt-tl"></span>
         <span class="bolt bolt-tr"></span>

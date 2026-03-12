@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  position: relative;
+}
+
+.fab {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  position: relative;
+  z-index: 2;
+}
+
+.fab:hover {
+  transform: scale(1.1);
+  border-color: rgba(255,255,255,0.5);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.fab.open {
+  border-color: #fff;
+  box-shadow: 0 0 12px rgba(255,255,255,0.3);
+}
+
+.palette {
+  position: absolute;
+  bottom: 44px;
+  right: 0;
+  transform: scale(0.5);
+  transform-origin: bottom right;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 148px;
+  padding: 8px;
+  background: rgba(30, 30, 28, 0.95);
+  border: 1px solid #5a5a54;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  transition: opacity 0.2s, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+
+.palette.open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.swatch:hover {
+  transform: scale(1.15);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.swatch.selected {
+  border-color: #fff;
+  box-shadow: 0 0 6px rgba(255,255,255,0.4);
+}
+
+.custom-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #3a3a36;
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.custom-wrap input[type="color"] {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+}
+
+.custom-wrap input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.custom-wrap input[type="color"]::-webkit-color-swatch {
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 50%;
+}

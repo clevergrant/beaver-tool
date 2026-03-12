@@ -1,0 +1,57 @@
+:host {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.label {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.text-inner {
+  display: inline-block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.text-inner.scrolling {
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+  animation: label-scroll var(--scroll-duration, 2s) ease-in-out infinite alternate;
+  animation-delay: 0.3s;
+}
+
+@keyframes label-scroll {
+  0%, 15%   { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--scroll-dist)); }
+}
+
+.label.dymo {
+  background: #1a1a18;
+  color: #e8e4d4;
+  border-radius: 2px;
+  border: 1px solid #333;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.label.embossed {
+  color: rgba(255,255,255,0.7);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.1);
+}
+
+.label.plain {
+  color: #e0ddd0;
+}

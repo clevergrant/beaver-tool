@@ -1,0 +1,327 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.canvas:active {
+  cursor: grabbing;
+}
+
+.canvas-inner {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  transform-origin: 0 0;
+}
+
+
+svg.connections {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+
+svg.connections path {
+  fill: none;
+  stroke: #ffaa20;
+  stroke-width: 2;
+  opacity: 0.7;
+}
+
+svg.connections path.temp-connection {
+  stroke-dasharray: 6 4;
+  opacity: 0.5;
+}
+
+.node {
+  position: absolute;
+  background: #2a2a28;
+  border: 1px solid #5a5a54;
+  border-radius: 4px;
+  min-width: 140px;
+  font-size: 0.65rem;
+  color: #e0ddd0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  cursor: move;
+  z-index: 2;
+  user-select: none;
+  min-height: 44px;
+}
+
+.node:hover {
+  border-color: #8a8a7a;
+}
+
+.node.selected {
+  border-color: #60a0ff;
+  box-shadow: 0 0 10px rgba(96,160,255,0.3), 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.selection-rect {
+  position: fixed;
+  border: 1px solid rgba(96,160,255,0.6);
+  background: rgba(96,160,255,0.08);
+  pointer-events: none;
+  z-index: 0;
+  display: none;
+}
+
+.node-header {
+  padding: 4px 8px;
+  border-radius: 3px 3px 0 0;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #4a4a44;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.node-header.input { background: #1a2a1a; color: #30ff60; }
+.node-header.output { background: #2a2a1a; color: #ffaa20; }
+.node-header.transform { background: #1a1a2a; color: #60a0ff; }
+
+.node-delete {
+  cursor: pointer;
+  opacity: 0.4;
+  font-size: 0.7rem;
+}
+.node-delete:hover { opacity: 1; color: #ff3030; }
+
+.node-body {
+  padding: 6px 8px;
+  font-size: 0.6rem;
+  color: #aaa;
+}
+
+.port {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5a5a54;
+  border: 2px solid #3a3a36;
+  cursor: crosshair;
+  z-index: 3;
+  transition: background 0.15s;
+}
+
+.port:hover {
+  background: #ffaa20;
+  box-shadow: 0 0 6px rgba(255,170,32,0.5);
+}
+
+.port.input-port { left: -5px; }
+.port.output-port { right: -5px; }
+
+.port-label {
+  position: absolute;
+  font-size: 0.5rem;
+  color: #777;
+  white-space: nowrap;
+}
+
+.port-label.input-label { left: 10px; }
+.port-label.output-label { right: 10px; }
+
+.label-input {
+  background: #1a1a18;
+  border: 1px solid #4a4a44;
+  border-radius: 2px;
+  color: #e0ddd0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  width: calc(100% - 16px);
+  outline: none;
+}
+
+.label-input:focus {
+  border-color: #60a0ff;
+}
+
+.label-input::placeholder {
+  color: #555;
+  font-style: italic;
+}
+
+.label-text-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.label-text-row .label-input {
+  flex: 1;
+  width: auto;
+}
+
+.label-override-toggle {
+  accent-color: #60a0ff;
+  cursor: pointer;
+  margin: 0;
+}
+
+.label-input:disabled {
+  cursor: default;
+}
+
+.node-select {
+  background: #1a1a18;
+  border: 1px solid #4a4a44;
+  border-radius: 2px;
+  color: #e0ddd0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  padding: 2px 4px;
+  outline: none;
+  width: 100%;
+}
+
+.node-select:focus {
+  border-color: #60a0ff;
+}
+
+.node-param-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.node-param-label {
+  font-size: 0.5rem;
+  color: #8a8a7a;
+  white-space: nowrap;
+  min-width: 28px;
+}
+
+.label-resolved {
+  font-size: 0.5rem;
+  color: #60a0ff;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+
+.context-menu {
+  position: absolute;
+  background: #2a2a28;
+  border: 1px solid #5a5a54;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  z-index: 20;
+  font-size: 0.6rem;
+  min-width: 140px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: none;
+}
+
+.context-menu.visible { display: block; }
+
+.context-menu-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: #ccc;
+  border-bottom: 1px solid #3a3a36;
+  letter-spacing: 0.05em;
+}
+
+.context-menu-item:last-child { border-bottom: none; }
+
+.context-menu-item:hover {
+  background: rgba(255,170,32,0.15);
+  color: #ffaa20;
+}
+
+.context-menu-header {
+  padding: 4px 12px;
+  font-size: 0.5rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #222;
+}
+
+.context-menu-accordion {
+  border-bottom: 1px solid #3a3a36;
+}
+
+.context-menu-accordion-trigger {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: #999;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #252523;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.context-menu-accordion-trigger:hover {
+  background: rgba(255,170,32,0.08);
+  color: #ccc;
+}
+
+.context-menu-accordion-arrow {
+  transition: transform 0.15s ease;
+  font-size: 0.5rem;
+}
+
+.context-menu-accordion.open .context-menu-accordion-arrow {
+  transform: rotate(90deg);
+}
+
+.context-menu-accordion-body {
+  display: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.context-menu-accordion.open .context-menu-accordion-body {
+  display: block;
+}
+
+/* Camera/screen button styles */
+.camera-btn {
+  background: #2a2a28;
+  border: 1px solid #4a4a44;
+  border-radius: 3px;
+  color: #e0ddd0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.55rem;
+  padding: 3px 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.camera-btn:hover {
+  border-color: #60a0ff;
+  color: #60a0ff;
+}
+
+.camera-btn.active {
+  border-color: #30ff60;
+  color: #30ff60;
+}

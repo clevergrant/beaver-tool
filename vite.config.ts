@@ -1,6 +1,31 @@
 import { defineConfig, loadEnv } from "vite";
 import type { Plugin } from "vite";
 import { spawn, type ChildProcess } from "child_process";
+import path from "path";
+
+const componentsDir = path
+  .resolve(__dirname, "src/public/components")
+  .replaceAll("\\", "/");
+
+function shadowScssPlugin(): Plugin {
+  return {
+    name: "shadow-scss",
+    enforce: "pre",
+    transform(code, id) {
+      const normalId = id.replaceAll("\\", "/");
+      if (!normalId.startsWith(componentsDir) || !normalId.endsWith(".ts"))
+        return;
+      const rewritten = code.replace(
+        /from\s+(['"])(.+?\.scss)\1/g,
+        (match, quote, specifier) => {
+          if (specifier.includes("?")) return match;
+          return `from ${quote}${specifier}?inline${quote}`;
+        },
+      );
+      if (rewritten !== code) return { code: rewritten, map: null };
+    },
+  };
+}
 
 function backendPlugin(): Plugin {
   let backend: ChildProcess | null = null;
@@ -40,6 +65,6 @@ export default defineConfig(({ mode }) => {
         "/ws": { target: `ws://localhost:${backendPort}`, ws: true },
       },
     },
-    plugins: [backendPlugin()],
+    plugins: [shadowScssPlugin(), backendPlugin()],
   };
 });

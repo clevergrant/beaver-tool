@@ -1,0 +1,178 @@
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.housing {
+  position: relative;
+  width: 92%;
+  height: calc(92% + 9px);
+  border-radius: 6px;
+  background: radial-gradient(circle at 40% 35%, #3a3a38, #1a1a18);
+  border: 2px solid #4a4a44;
+  box-shadow:
+    inset 0 2px 8px rgba(0,0,0,0.8),
+    inset 0 0 2px rgba(0,0,0,0.6),
+    0 1px 3px rgba(0,0,0,0.4);
+  overflow: visible;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+/* Mounting bolts */
+.bolt {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #888, #555);
+  box-shadow: inset 0 0.5px 1px rgba(255,255,255,0.15);
+  z-index: 4;
+}
+.bolt-tl { top: 2px; left: 2px; }
+.bolt-tr { top: 2px; right: 2px; }
+.bolt-bl { bottom: 2px; left: 2px; }
+.bolt-br { bottom: 2px; right: 2px; }
+
+/* The screen area */
+.screen {
+  position: relative;
+  background: #0a0a0a;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 6px rgba(0,0,0,0.9);
+  overflow: hidden;
+  display: flex;
+  margin-top: 5px;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 10px);
+  height: calc(100% - 19px);
+  z-index: 2;
+}
+
+/* Pixel canvas — scaled up with nearest-neighbor */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* CRT scanline overlay */
+.screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* CRT glass shine */
+.screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.08) 0%,
+    rgba(255,255,255,0.03) 30%,
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Hidden video element for camera stream — avoid display:none
+   which prevents some browsers from loading/playing media. */
+video {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Overlay controls */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.overlay.streaming {
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 0.2s;
+}
+
+.overlay.streaming:hover {
+  opacity: 1;
+}
+
+.overlay:hover {
+  background: rgba(0,0,0,0.2);
+}
+
+.overlay-icon {
+  font-size: 1.4rem;
+  color: rgba(255,255,255,0.5);
+  transition: color 0.2s;
+}
+
+.overlay:hover .overlay-icon {
+  color: rgba(255,255,255,0.8);
+}
+
+/* Power LED — sits in the bottom bezel */
+.power-led {
+  position: absolute;
+  bottom: 4.5px;
+  left: 10px;
+  width: 8px;
+  height: 4px;
+  border-radius: 4px;
+  background: #333;
+  border: 0.5px solid #555;
+  z-index: 4;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.power-led.on {
+  background: #30ff60;
+  box-shadow: 0 0 4px rgba(48,255,96,0.5);
+}
+
+.power-led.connecting {
+  background: #ffcc00;
+  box-shadow: 0 0 4px rgba(255,204,0,0.5);
+  animation: led-pulse 1s ease-in-out infinite;
+}
+
+.power-led.error {
+  background: #ff3030;
+  box-shadow: 0 0 4px rgba(255,48,48,0.5);
+}
+
+@keyframes led-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
