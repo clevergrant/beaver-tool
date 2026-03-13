@@ -7,20 +7,24 @@ This guide covers every file you need to touch when adding a new surface compone
 ## Overview of Files to Modify
 
 | # | File | What to do |
-|---|------|------------|
-| 1 | `public/components/surface/tb-<name>.js` | Create the web component |
-| 2 | `public/index.html` | Add a `<script>` tag |
-| 3 | `public/js/app.js` | Add a `case` in `createSurfaceElement()` |
-| 4 | `public/components/tb-component.js` | Add to the `elementTypes` context menu array |
-| 5 | `public/components/tb-component.js` | (If configurable) Add a `_sync<Name>Config()` method |
-| 6 | `public/components/tb-node-editor.js` | Add display name + config UI in the circuitry editor |
-| 7 | `public/js/surface-registry.js` | Register a factory for the outer-grid context menu |
+| --- | ---- | ---------- |
+| 1 | `src/public/components/surface/tb-<name>/index.ts` | Create the web component |
+| 1b | `src/public/components/surface/tb-<name>/tb-<name>.scss` | Component styles (optional) |
+| 2 | `src/public/components/surface/index.ts` | Import the new component |
+| 3 | `src/public/js/app.ts` | Add a `case` in `createSurfaceElement()` |
+| 4 | `src/public/components/tb-component/index.ts` | Add to the `elementTypes` context menu array |
+| 5 | `src/public/components/tb-component/index.ts` | (If configurable) Add a `_sync<Name>Config()` method |
+| 6 | `src/public/components/tb-node-editor/index.ts` | Add display name + config UI in the circuitry editor |
+| 7 | `src/public/js/surface-registry.ts` | Register a factory for the outer-grid context menu |
 
 ## Step 1: Create the Web Component
 
-Create `public/components/surface/tb-<name>.js`. Extend `TbSurfaceComponent` and override the required static getters.
+Create a directory `src/public/components/surface/tb-<name>/` with an `index.ts` file and an optional `tb-<name>.scss` for styles. Extend `TbSurfaceComponent` and override the required static getters.
 
-```js
+```ts
+import { TbSurfaceComponent } from '../tb-surface-component';
+import styles from './tb-example.scss';
+
 class TbExample extends TbSurfaceComponent {
   static get observedAttributes() {
     return ["on", "label" /* , ...other attributes */];
@@ -43,11 +47,8 @@ class TbExample extends TbSurfaceComponent {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display: flex; align-items: center; justify-content: center; }
-        /* ... */
-      </style>
+    this.shadowRoot!.innerHTML = `
+      <style>${styles}</style>
       <!-- template HTML -->
     `;
     // Cache DOM refs, bind event listeners, etc.
@@ -89,7 +90,7 @@ customElements.define("tb-example", TbExample);
 
 If your component displays a value that can optionally be overridden by the user (instead of showing the device-supplied value), declare `overwritableProperties`:
 
-```js
+```ts
 static get overwritableProperties() {
   return [
     { name: "text", overwriteAttr: "overwrite-text", label: "Text", type: "text" },
@@ -99,21 +100,21 @@ static get overwritableProperties() {
 
 Types: `"text"`, `"color"`, `"number"`.
 
-## Step 2: Add the Script Tag
+## Step 2: Import the Component
 
-In `public/index.html`, add a `<script>` tag in the surface component block (after `tb-surface-component.js`, before `tb-component.js`):
+In `src/public/components/surface/index.ts`, add a side-effect import for your new component:
 
-```html
-<script src="/components/surface/tb-example.js"></script>
+```ts
+import './tb-example';
 ```
 
-Order matters: `tb-surface-component.js` (base class) must load first, and `tb-component.js` must load after all surface components.
+The barrel file re-exports the base class and registers all surface components as custom elements. No `<script>` tags needed -- the bundler handles everything from the single entry point in `index.html`.
 
 ## Step 3: Register in `createSurfaceElement()`
 
-In `public/js/app.js`, find the `createSurfaceElement()` function and add a case to the `switch (elem.type)` block:
+In `src/public/js/app.ts`, find the `createSurfaceElement()` function and add a case to the `switch (elem.type)` block:
 
-```js
+```ts
 case "example":
     el = document.createElement("tb-example")
     // Wire up any events that need app-level handling:
@@ -131,9 +132,9 @@ The `applySurfaceProps(el, props)` call after the switch applies all saved `prop
 
 ## Step 4: Add to the Surface Editor Context Menu
 
-In `public/components/tb-component.js`, find the `elementTypes` array inside the surface editor right-click handler and add an entry:
+In `src/public/components/tb-component/index.ts`, find the `elementTypes` array inside the surface editor right-click handler and add an entry:
 
-```js
+```ts
 const elementTypes = [
     // ... existing entries ...
     { type: "example", tag: "tb-example", name: "Example Widget", icon: "★" },
@@ -150,9 +151,9 @@ The `.map()` call auto-reads `sizeConstraints` from the element class to determi
 
 ## Step 5: Add Config Sync (if the component has circuitry-editable parameters)
 
-If the component has parameters that should be editable from the circuitry node editor (like a toggle's orientation, or a rainbow's interval), add a sync method in `public/components/tb-component.js`:
+If the component has parameters that should be editable from the circuitry node editor (like a toggle's orientation, or a rainbow's interval), add a sync method in `src/public/components/tb-component/index.ts`:
 
-```js
+```ts
 _syncExampleConfig() {
     const { nodes } = this._circuitryData;
     if (!nodes?.length) return;
@@ -181,13 +182,13 @@ Call this method from **all four sync sites** (search for `_syncToggleConfig` to
 
 ## Step 6: Add Circuitry Node Editor UI
 
-In `public/components/tb-node-editor.js`, make three changes:
+In `src/public/components/tb-node-editor/index.ts`, make three changes:
 
 ### 6a. Display Name
 
 Add an entry to the `_nodeDisplayName()` method's `names` object:
 
-```js
+```ts
 "surface-example": "Example",
 ```
 
@@ -195,7 +196,7 @@ Add an entry to the `_nodeDisplayName()` method's `names` object:
 
 In `_nodeBodyContent()`, add a block **before** the generic `surface-` fallback:
 
-```js
+```ts
 if (node.type === "surface-example") {
     const label = node.config?.label || node.config?.surfaceId || "\u2014";
     const myParam = node.config?.myParam || "default";
@@ -214,7 +215,7 @@ Use class `node-select` for inputs/selects to inherit the node editor styling. U
 
 In `_renderNode()`, after the existing toggle/label handlers, wire up change listeners:
 
-```js
+```ts
 const exampleParam = el.querySelector(".example-param");
 if (exampleParam) {
     exampleParam.addEventListener("mousedown", (e) => e.stopPropagation());
@@ -230,9 +231,9 @@ Always call `e.stopPropagation()` on `mousedown` to prevent the node drag handle
 
 ## Step 7: Register a Factory (Outer Grid)
 
-In `public/js/surface-registry.js`, register a factory so the component can also be placed as a standalone widget from the outer grid context menu:
+In `src/public/js/surface-registry.ts`, register a factory so the component can also be placed as a standalone widget from the outer grid context menu:
 
-```js
+```ts
 SurfaceComponents.register({
     type: "example",
     name: "Example Widget",
@@ -264,13 +265,13 @@ SurfaceComponents.register({
 
 ## Checklist
 
-- [ ] Created `public/components/surface/tb-<name>.js`
+- [ ] Created `src/public/components/surface/tb-<name>/index.ts` (and optional `.scss`)
 - [ ] Extended `TbSurfaceComponent`, overrode `circuitryPorts` and `sizeConstraints`
 - [ ] Called `super.connectedCallback()` and `super.disconnectedCallback()`
-- [ ] Added `<script>` tag in `public/index.html`
-- [ ] Added `case` in `createSurfaceElement()` in `public/js/app.js`
-- [ ] Added entry to `elementTypes` array in `public/components/tb-component.js`
+- [ ] Added side-effect import in `src/public/components/surface/index.ts`
+- [ ] Added `case` in `createSurfaceElement()` in `src/public/js/app.ts`
+- [ ] Added entry to `elementTypes` array in `src/public/components/tb-component/index.ts`
 - [ ] (If configurable) Added `_sync<Name>Config()` and called it from all 4 sync sites
-- [ ] Added display name in `_nodeDisplayName()` in `tb-node-editor.js`
+- [ ] Added display name in `_nodeDisplayName()` in `src/public/components/tb-node-editor/index.ts`
 - [ ] (If configurable) Added config UI in `_nodeBodyContent()` and event handlers in `_renderNode()`
-- [ ] Registered factory in `public/js/surface-registry.js`
+- [ ] Registered factory in `src/public/js/surface-registry.ts`

@@ -22,19 +22,20 @@ A standalone Windows installer is available on the [Releases](https://github.com
 - [docs/timberborn-api.md](docs/timberborn-api.md) -- official HTTP API guide (from [timberborn.io](https://timberborn.io/))
 - [docs/timberborn-automation.md](docs/timberborn-automation.md) -- full automation system reference (buildings, bots, save format, modding)
 
+## Setup - Developer
+
 ### Prerequisites
 
-- [Bun](https://bun.sh/) v1.3+ (or use the Windows installer which bundles a runtime)
+- [Node.js](https://nodejs.org/) v18+
+- [Bun](https://bun.sh/) v1.3+ (optional -- used for the frontend build and dev server; falls back to Node if unavailable)
 - Timberborn running with HTTP Lever / HTTP Adapter buildings placed
-
-## Setup - Developer
 
 ### Install
 
 ```bash
 git clone https://github.com/clevergrant/beaver-tool.git
 cd beaver-tool
-bun install
+npm install
 ```
 
 ### Configure
@@ -46,8 +47,8 @@ cp .env.example .env
 ```
 
 | Variable | Default | Description |
-|---|---|---|
-| `TB_PORT` | `3000` | Port for the web interface |
+| --- | --- | --- |
+| `TB_PORT` | `80` | Port for the web interface |
 | `TB_GAME_API` | `http://localhost:8080/api` | Timberborn's HTTP API URL |
 | `DISCORD_BOT_TOKEN` | *(empty)* | Optional Discord bot token for DM control |
 
@@ -55,11 +56,11 @@ cp .env.example .env
 
 ```bash
 # Development (with HMR)
-bun run dev
+npm run dev
 
 # Production
-bun run build
-bun run start
+npm run build
+npm run start
 
 # Or use the CLI
 beavers start    # start as background daemon
@@ -67,7 +68,24 @@ beavers live     # full-screen TUI dashboard
 beavers stop     # stop the daemon
 ```
 
-Then open `http://localhost:3000` (or your configured port) in a browser.
+Then open `http://localhost` (or your configured port) in a browser.
+
+### Project Structure
+
+```text
+src/
+  server.ts          # Backend entry point (compiled with tsc)
+  bin/tb.ts          # CLI entry point
+  lib/               # Shared backend modules
+  public/            # Frontend (bundled by Bun)
+    index.html
+    js/              # TypeScript modules (app, store, grid, etc.)
+    css/             # Global styles
+    components/      # Web components (co-located .ts + .scss)
+      surface/       # Surface components (LED, toggle, dial, etc.)
+```
+
+The backend is compiled with `tsc` to `build/` and the frontend is bundled separately by Bun (via `run-bun.js`, which falls back gracefully when Bun isn't in PATH).
 
 ## License
 
