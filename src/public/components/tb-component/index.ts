@@ -3,6 +3,8 @@ import { TbSurfaceComponent } from '../surface/tb-surface-component';
 import { Grid, CELL_SIZE, COMP_MIN_WIDTH, COMP_MIN_HEIGHT } from '../../js/grid';
 import { editorState } from '../../js/editor-state';
 import { ErrorBus, IO0003 } from '../../js/errors';
+import { loadSettings, onSettingsChange, offSettingsChange } from '../../js/settings';
+import type { DashboardSettings } from '../../js/settings';
 import type { SurfaceElementConfig, CircuitryData, CircuitryNode, CircuitryEdge } from '../../types';
 
 const sheet = new CSSStyleSheet();
@@ -152,6 +154,7 @@ class TbComponent extends HTMLElement {
   _colorChangeHandler!: (e: Event) => void;
   _escHandler!: (e: KeyboardEvent) => void;
   _cameraConfigHandler: ((e: Event) => void) | null = null;
+  _settingsHandler: ((s: DashboardSettings) => void) | null = null;
 
   constructor() {
     super();
@@ -213,6 +216,16 @@ class TbComponent extends HTMLElement {
     this._syncRateMeterConfig();
     this._syncRainbowConfig();
     this._syncCameraConfig();
+
+    this._settingsHandler = () => this._render();
+    onSettingsChange(this._settingsHandler);
+  }
+
+  disconnectedCallback(): void {
+    if (this._settingsHandler) {
+      offSettingsChange(this._settingsHandler);
+      this._settingsHandler = null;
+    }
   }
 
   attributeChangedCallback(): void {
@@ -768,16 +781,20 @@ class TbComponent extends HTMLElement {
     this._surfaceView.style.background = color;
 
     // Set highlight color custom property for CSS
-    const hl = TbComponent.computeHighlight(color);
+    const hl = TbComponent.computeHighlight(color, loadSettings().hueOffset);
     this.style.setProperty("--comp-hl", hl);
   }
 
   /**
-   * Compute a bright complementary highlight color from bgColor.
-   * Only the hue changes (180deg shift); saturation and lightness stay fixed.
-   * For near-neutral backgrounds, falls back to cyan.
+   * Compute a bright highlight color from bgColor with a configurable hue shift.
+   *
+   * @param hueOffsetPercent 0-100 slider value.
+   *   0 and 100 = 180-degree shift (complementary, original behavior).
+   *   50 = 0-degree shift (monochromatic).
+   *   Maps linearly through the full hue circle.
+   * For near-neutral backgrounds, falls back to cyan regardless of offset.
    */
-  static computeHighlight(hexColor: string): string {
+  static computeHighlight(hexColor: string, hueOffsetPercent: number = 0): string {
     let hex = (hexColor || "#d4cdb8").replace("#", "");
     if (hex.length === 3) hex = hex.charAt(0)+hex.charAt(0)+hex.charAt(1)+hex.charAt(1)+hex.charAt(2)+hex.charAt(2);
     const r = parseInt(hex.substr(0, 2), 16) / 255;
@@ -795,8 +812,11 @@ class TbComponent extends HTMLElement {
       else h = ((r - g) / d + 4) / 6;
     }
 
-    // Complementary hue; cyan for neutrals
-    const nh = s < 0.1 ? 0.5 : (h + 0.5) % 1;
+    // Hue shift: slider 0 → 180deg, slider 50 → 360deg, slider 100 → 540deg (=180deg)
+    const shiftFraction = (180 + (hueOffsetPercent / 100) * 360) / 360;
+    // For neutrals (s < 0.1) there's no base hue to shift, so use shiftFraction
+    // directly as the hue — still defaults to cyan (0.5) at slider 0.
+    const nh = s < 0.1 ? shiftFraction % 1 : (h + shiftFraction) % 1;
 
     // Fixed bright saturation and lightness
     const ns = 0.85;
@@ -826,7 +846,7 @@ class TbComponent extends HTMLElement {
     const color = this.getAttribute("color") || "#d4cdb8";
     const compId = this.getAttribute("component-id") || "";
     const darkerColor = this._darkenColor(color, 0.4);
-    const highlightColor = TbComponent.computeHighlight(color);
+    const highlightColor = TbComponent.computeHighlight(color, loadSettings().hueOffset);
 
     // Set circuitry view colors
     this._circuitryView.style.background = darkerColor;
@@ -1232,7 +1252,7 @@ class TbComponent extends HTMLElement {
         this._circuitryView.style.borderColor = newColor;
 
         // Update highlight color for editor UI
-        const newHighlight = TbComponent.computeHighlight(newColor);
+        const newHighlight = TbComponent.computeHighlight(newColor, loadSettings().hueOffset);
         this.style.setProperty("--comp-hl", newHighlight);
 
         // Update node editor legend colors

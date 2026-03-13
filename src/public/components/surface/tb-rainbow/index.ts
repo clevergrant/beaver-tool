@@ -1,5 +1,8 @@
 import styles from './tb-rainbow.scss';
 import { TbSurfaceComponent, type CircuitryPorts, type SizeConstraints } from '../tb-surface-component';
+import { getPalette } from '../../../js/palettes';
+import { loadSettings, onSettingsChange, offSettingsChange } from '../../../js/settings';
+import type { DashboardSettings } from '../../../js/settings';
 
 const sheet = new CSSStyleSheet();
 sheet.replaceSync(styles);
@@ -11,23 +14,14 @@ sheet.replaceSync(styles);
  * emits 'color-pick' events at a configurable interval. Wire it to a
  * lever in the circuitry editor to send rainbow colors to the game.
  *
+ * Colors are sourced from the active palette in global settings.
+ *
  * Attributes:
  *   on       - Boolean, current toggle state
  *   label    - Optional display label
  *   fps      - Frames (color changes) per second (default: 2)
  */
 class TbRainbow extends TbSurfaceComponent {
-  static COLORS: string[] = [
-    "#ff4c2e",
-    "#fe792e",
-    "#fdd42c",
-    "#bad015",
-    "#64b53c",
-    "#89d6e8",
-    "#3f5d93",
-    "#ff63a8",
-  ];
-
   static get observedAttributes(): string[] {
     return ["on", "label", "fps"];
   }
@@ -40,13 +34,16 @@ class TbRainbow extends TbSurfaceComponent {
     return { minW: 2, minH: 2, maxW: 2, maxH: 2 };
   }
 
+  private _colors: string[];
   private _colorIndex: number;
   private _timer: ReturnType<typeof setInterval> | null;
   private _disc: HTMLElement;
   private _labelEl: HTMLElement;
+  private _settingsHandler: ((s: DashboardSettings) => void) | null = null;
 
   constructor() {
     super();
+    this._colors = getPalette(loadSettings().paletteId).colors.slice(0, 8);
     this._colorIndex = 0;
     this._timer = null;
 
@@ -78,11 +75,21 @@ class TbRainbow extends TbSurfaceComponent {
     super.connectedCallback();
     this._render();
     if (this.hasAttribute("on")) this._startCycling();
+
+    this._settingsHandler = (s: DashboardSettings) => {
+      this._colors = getPalette(s.paletteId).colors.slice(0, 8);
+      this._colorIndex = 0;
+    };
+    onSettingsChange(this._settingsHandler);
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
     this._stopCycling();
+    if (this._settingsHandler) {
+      offSettingsChange(this._settingsHandler);
+      this._settingsHandler = null;
+    }
   }
 
   attributeChangedCallback(name: string, _oldValue: string | null, _newValue: string | null): void {
@@ -123,8 +130,8 @@ class TbRainbow extends TbSurfaceComponent {
   }
 
   private _tick(): void {
-    const color: string = TbRainbow.COLORS[this._colorIndex]!;
-    this._colorIndex = (this._colorIndex + 1) % TbRainbow.COLORS.length;
+    const color: string = this._colors[this._colorIndex]!;
+    this._colorIndex = (this._colorIndex + 1) % this._colors.length;
 
     this._disc.style.background = color;
     this.style.setProperty("--current-color", color);
