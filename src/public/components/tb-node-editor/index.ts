@@ -735,6 +735,17 @@ class TbNodeEditor extends HTMLElement {
       });
     }
 
+    // Rate meter style select
+    const rateMeterStyle = el.querySelector(".rate-meter-style") as HTMLSelectElement | null;
+    if (rateMeterStyle) {
+      rateMeterStyle.addEventListener("mousedown", (e: Event) => e.stopPropagation());
+      rateMeterStyle.addEventListener("change", () => {
+        if (!node.config) node.config = {};
+        node.config.meterStyle = rateMeterStyle.value;
+        this._emitRateMeterConfigChange(node);
+      });
+    }
+
     // Rainbow FPS input
     const rainbowFps = el.querySelector(".rainbow-fps") as HTMLInputElement | null;
     if (rainbowFps) {
@@ -996,6 +1007,17 @@ class TbNodeEditor extends HTMLElement {
     }));
   }
 
+  /** Emit rate meter config change so the parent component can update the style */
+  private _emitRateMeterConfigChange(node: CircuitryNode): void {
+    this.dispatchEvent(new CustomEvent("rate-meter-config-change", {
+      bubbles: true,
+      detail: {
+        surfaceId: node.config?.surfaceId,
+        meterStyle: node.config?.meterStyle || "lcd",
+      },
+    }));
+  }
+
   /** Public API: remove a node and its edges by ID */
   removeNode(nodeId: string): void {
     this._deleteNode(nodeId);
@@ -1099,6 +1121,19 @@ class TbNodeEditor extends HTMLElement {
             <option value="small"${size === "small" ? " selected" : ""}>small</option>
             <option value="medium"${size === "medium" ? " selected" : ""}>medium</option>
             <option value="large"${size === "large" ? " selected" : ""}>large</option>
+          </select>
+        </div>`;
+    }
+    if (node.type === "surface-rate-meter") {
+      const label: string = node.config?.label || node.config?.surfaceId || "\u2014";
+      const meterStyle: string = node.config?.meterStyle || "lcd";
+      return `
+        <span style="color:#60a0ff;">${label}</span>
+        <div class="node-param-row">
+          <span class="node-param-label">style</span>
+          <select class="node-select rate-meter-style">
+            <option value="lcd"${meterStyle === "lcd" ? " selected" : ""}>lcd</option>
+            <option value="dial"${meterStyle === "dial" ? " selected" : ""}>dial</option>
           </select>
         </div>`;
     }

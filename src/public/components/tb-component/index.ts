@@ -210,6 +210,7 @@ class TbComponent extends HTMLElement {
     // Apply circuitry node parameters to surface elements on first load
     this._syncLabelConfig();
     this._syncToggleConfig();
+    this._syncRateMeterConfig();
     this._syncRainbowConfig();
     this._syncCameraConfig();
   }
@@ -509,6 +510,25 @@ class TbComponent extends HTMLElement {
         surfaceEl.setAttribute("switch-style", switchStyle);
       } else {
         surfaceEl.removeAttribute("switch-style");
+      }
+    }
+  }
+
+  _syncRateMeterConfig(): void {
+    const { nodes } = this._circuitryData;
+    if (!nodes?.length) return;
+
+    for (const node of nodes) {
+      if (node.type !== "surface-rate-meter" || !node.config?.surfaceManaged) continue;
+      const sid = node.config.surfaceId;
+      const surfaceEl = this.shadowRoot?.querySelector(`[surface-id="${sid}"]`) as HTMLElement | null;
+      if (!surfaceEl) continue;
+
+      const meterStyle: string = node.config.meterStyle || "lcd";
+      if (meterStyle !== "lcd") {
+        surfaceEl.setAttribute("meter-style", meterStyle);
+      } else {
+        surfaceEl.removeAttribute("meter-style");
       }
     }
   }
@@ -910,6 +930,10 @@ class TbComponent extends HTMLElement {
         }
       };
       this._nodeEditor.addEventListener("camera-config-change", this._cameraConfigHandler);
+      this._nodeEditor.addEventListener("rate-meter-config-change", () => {
+        this._syncRateMeterConfig();
+        this._emitSurfaceChange(this.getAttribute("component-id") || "");
+      });
       this._nodeEditor.addEventListener("circuitry-data-change", () => this._emitCircuitryChange());
     }
 
@@ -1272,6 +1296,7 @@ class TbComponent extends HTMLElement {
     // Sync label/toggle config so surface elements reflect circuitry changes
     this._syncLabelConfig();
     this._syncToggleConfig();
+    this._syncRateMeterConfig();
     this._syncRainbowConfig();
     this._syncCameraConfig();
 

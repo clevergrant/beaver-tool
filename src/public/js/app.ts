@@ -382,6 +382,9 @@ function createSurfaceElement(elem: SurfaceElementConfig, index: number): HTMLEl
 				}
 			})
 			break
+		case "rate-meter":
+			el = document.createElement("tb-rate-meter")
+			break
 		case "camera":
 			el = document.createElement("tb-camera")
 			el.addEventListener("color-batch", (e: Event) => {
