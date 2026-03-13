@@ -11,14 +11,14 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc && bun build-frontend.ts",
+    "build": "tsc && node run-bun.js build-frontend.ts",
     "build:backend": "tsc",
-    "build:frontend": "bun build-frontend.ts",
-    "start": "bun build/server.js",
-    "dev": "bun dev.ts",
+    "build:frontend": "node run-bun.js build-frontend.ts",
+    "start": "node build/server.js",
+    "dev": "node run-bun.js dev.ts",
     "dev:backend": "tsc --watch",
-    "beavers": "bun build/bin/tb.js",
-    "build:dist": "bun installer/build.js"
+    "beavers": "node build/bin/tb.js",
+    "build:dist": "node run-bun.js installer/build.js"
   },
   "dependencies": {
     "discord.js": "^14.25.1",

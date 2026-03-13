@@ -1,10 +1,34 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import * as c from "../lib/colors";
 import * as daemon from "../lib/daemon";
 import * as gameClient from "../lib/gameClient";
+
+/** Resolve the bun executable, checking PATH then common install locations. */
+function findBun(): string | null {
+  try {
+    execFileSync("bun", ["--version"], { stdio: "ignore" });
+    return "bun";
+  } catch {}
+  const home = process.env.USERPROFILE || process.env.HOME || "";
+  const candidates = [
+    path.join(home, ".bun", "bin", "bun.exe"),
+    path.join(home, ".bun", "bin", "bun"),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+/** Resolve the runtime executable — prefers bun if available, falls back to npx tsx. */
+function getRunner(): { cmd: string; args: string[] } {
+  const bun = findBun();
+  if (bun) return { cmd: bun, args: [] };
+  return { cmd: "npx", args: ["tsx"] };
+}
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
@@ -79,8 +103,9 @@ async function main(): Promise<void> {
 
 function cmdDev(): void {
   const root = path.resolve(__dirname, "../..");
+  const { cmd, args } = getRunner();
   console.log(`${c.cyan}Starting dev server...${c.reset}`);
-  execSync("bun dev.ts", { cwd: root, stdio: "inherit" });
+  execSync([cmd, ...args, "dev.ts"].join(" "), { cwd: root, stdio: "inherit" });
 }
 
 async function cmdStart(): Promise<void> {
@@ -99,11 +124,11 @@ async function cmdStart(): Promise<void> {
       execSync("beavers help", { stdio: "pipe" });
     } catch {
       console.log(`${c.dim}Linking beavers command...${c.reset}`);
-      execSync("bun link", { cwd: root, stdio: "inherit" });
+      execSync("npm link", { cwd: root, stdio: "inherit" });
     }
 
     console.log(`${c.dim}Building...${c.reset}`);
-    execSync("bun run build", { cwd: root, stdio: "inherit" });
+    execSync("npm run build", { cwd: root, stdio: "inherit" });
   }
 
   const pid = daemon.spawnServer();

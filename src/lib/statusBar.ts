@@ -19,7 +19,7 @@ interface StatusInfo {
  * and renders a full-screen dashboard. This is invoked by `tb live`.
  */
 export function startLiveView({ port }: LiveViewOptions): void {
-  const wsUrl = `ws://localhost:${port}/?mgmt=1`;
+  const wsUrl = `ws://localhost:${port}/ws?mgmt=1`;
 
   const status: StatusInfo = {
     server: false,
@@ -55,13 +55,12 @@ export function startLiveView({ port }: LiveViewOptions): void {
 
         if (msg.type === "state" || msg.devices) {
           // Device state update (initial or broadcast)
-          // Only keep levers — adapters are not shown in the live view.
           const devs: Record<string, { type: string; on: boolean }> = msg.devices || {};
           for (const key of Object.keys(devices)) {
-            if (!(key in devs) || devs[key]!.type !== "lever") delete devices[key];
+            if (!(key in devs)) delete devices[key];
           }
           for (const [key, val] of Object.entries(devs)) {
-            if (val.type === "lever") devices[key] = val;
+            devices[key] = val;
           }
           render();
         }

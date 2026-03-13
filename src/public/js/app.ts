@@ -7,7 +7,12 @@
  */
 
 // --- Module imports ---
-import "../css/styles.css"
+import globalStyles from "../css/styles.scss"
+
+// Inject global styles into the document
+const globalSheet = new CSSStyleSheet()
+globalSheet.replaceSync(globalStyles)
+document.adoptedStyleSheets = [...document.adoptedStyleSheets, globalSheet]
 import type { ComponentData, SurfaceElementConfig } from "../types"
 import { initContextMenu } from "./context-menu"
 import {
@@ -472,6 +477,7 @@ function propagateScreenResolutions(tbComp: any, circuitry: any): void {
 
 function applyDeviceState(devices: DeviceRecord): void {
 	deviceState = devices
+	;(window as any).deviceState = devices
 	mapPixels(devices)
 
 	for (const [id, comp] of componentData) {
