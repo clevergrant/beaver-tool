@@ -1,6 +1,7 @@
 import styles from './tb-node-editor.scss';
 import { DEFAULT_FPS, DEFAULT_THRESHOLD } from '../surface/tb-camera';
 import type { CircuitryNode, CircuitryEdge, CircuitryData, CircuitryPorts } from '../../types';
+import { ErrorBus, CE0001, CE0002, CE0003 } from '../../js/errors';
 
 const sheet = new CSSStyleSheet();
 sheet.replaceSync(styles);
@@ -831,20 +832,51 @@ class TbNodeEditor extends HTMLElement {
     port.addEventListener("mouseup", (e: MouseEvent) => {
       if (this._selectedNodes.size > 1) return;
       e.stopPropagation();
-      if (this._connecting && (port as HTMLElement).dataset.portType === "input") {
-        const targetNodeId = node.id;
-        if (this._connecting.nodeId !== targetNodeId) {
-          this._edges.push({
-            from: this._connecting.nodeId,
-            fromPort: `out-${this._connecting.portIndex}`,
-            to: targetNodeId,
-            toPort: `in-${(port as HTMLElement).dataset.portIndex}`,
-          });
-          this._renderConnections();
-        }
+      if (!this._connecting) return;
+
+      const targetPortType = (port as HTMLElement).dataset.portType as "input" | "output";
+
+      // CE0001: same port polarity
+      if (targetPortType === "output") {
+        ErrorBus.report(CE0001("output", "output"));
         this._connecting = null;
         this._removeTempConnection();
+        return;
       }
+
+      const targetNodeId = node.id;
+
+      // CE0002: self-connection
+      if (this._connecting.nodeId === targetNodeId) {
+        const label = this._nodeDisplayName(node.type);
+        ErrorBus.report(CE0002(label));
+        this._connecting = null;
+        this._removeTempConnection();
+        return;
+      }
+
+      const fromPort = `out-${this._connecting.portIndex}`;
+      const toPort = `in-${(port as HTMLElement).dataset.portIndex}`;
+
+      // CE0003: duplicate edge
+      const duplicate = this._edges.some(
+        edge => edge.from === this._connecting!.nodeId && edge.to === targetNodeId
+          && edge.fromPort === fromPort && edge.toPort === toPort
+      );
+      if (duplicate) {
+        const fromNode = this._nodes.find(n => n.id === this._connecting!.nodeId);
+        const fromLabel = this._nodeDisplayName(fromNode?.type || "?");
+        const toLabel = this._nodeDisplayName(node.type);
+        ErrorBus.report(CE0003(fromLabel, toLabel));
+        this._connecting = null;
+        this._removeTempConnection();
+        return;
+      }
+
+      this._edges.push({ from: this._connecting.nodeId, fromPort, to: targetNodeId, toPort });
+      this._renderConnections();
+      this._connecting = null;
+      this._removeTempConnection();
     });
 
     port.addEventListener("contextmenu", (e: MouseEvent) => {

@@ -14,6 +14,7 @@ const globalSheet = new CSSStyleSheet()
 globalSheet.replaceSync(globalStyles)
 document.adoptedStyleSheets = [...document.adoptedStyleSheets, globalSheet]
 import type { ComponentData, SurfaceElementConfig } from "../types"
+import { ErrorBus, API0001, API0002, WS0001, WS0002, UI0001 } from "./errors"
 import { initContextMenu } from "./context-menu"
 import {
 	COMP_MIN_HEIGHT,
@@ -395,7 +396,7 @@ function createSurfaceElement(elem: SurfaceElementConfig, index: number): HTMLEl
 			})
 			break
 		default:
-			console.warn(`Unknown surface element type: ${elem.tag}`)
+			ErrorBus.report(UI0001(elem.tag))
 			return null
 	}
 
@@ -675,7 +676,7 @@ async function handleToggle(name: string, on: boolean): Promise<void> {
 	try {
 		await fetch(endpoint, { method: "POST" })
 	} catch (err) {
-		console.error("Toggle failed:", err)
+		ErrorBus.report(API0001(name, err))
 	}
 }
 
@@ -753,7 +754,7 @@ async function handleColorPickViaCircuitry(
 			try {
 				await fetch(url, { method: "POST" })
 			} catch (err) {
-				console.error("Color pick failed:", err)
+				ErrorBus.report(API0002(name, err))
 			}
 		}
 
@@ -921,6 +922,7 @@ function connect(): void {
 		connLed.setAttribute("color", "red")
 		connLed.removeAttribute("on")
 		connText.textContent = "Link Down"
+		ErrorBus.report(WS0002())
 		setTimeout(connect, 2000)
 	}
 
@@ -945,7 +947,7 @@ function connect(): void {
 				applyDeviceState(data.devices)
 			}
 		} catch (err) {
-			console.error("WS parse error:", err)
+			ErrorBus.report(WS0001(err))
 		}
 	}
 }

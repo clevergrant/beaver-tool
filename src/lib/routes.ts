@@ -27,7 +27,7 @@ interface HandlerOptions {
 function sendGameApiError(res: http.ServerResponse, err: Error): void {
   log.error("GAME", `API error: ${err.message}`);
   res.writeHead(502, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ error: "Could not reach game API" }));
+  res.end(JSON.stringify({ error: "Could not reach game API", code: "API0003" }));
 }
 
 export default function createHandler({ gameApi, port, staticDir, getStatus, logBuffer }: HandlerOptions) {
@@ -116,7 +116,7 @@ export default function createHandler({ gameApi, port, staticDir, getStatus, log
           items = JSON.parse(body);
         } catch {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Invalid JSON" }));
+          res.end(JSON.stringify({ error: "Invalid JSON", code: "API0004" }));
           return;
         }
         let sent = 0, failed = 0;

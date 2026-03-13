@@ -1,5 +1,6 @@
 import type { ComponentData } from '../types';
 import { COMP_MIN_WIDTH, COMP_MIN_HEIGHT } from './grid';
+import { ErrorBus, IO0001, IO0002 } from './errors';
 
 interface RootData {
   title: string;
@@ -26,6 +27,7 @@ function _readRoot(): RootData {
   try {
     return JSON.parse(localStorage.getItem(ROOT_KEY) as string) || { title: "Timberborn Colony Control", components: [] };
   } catch {
+    ErrorBus.report(IO0001(ROOT_KEY));
     return { title: "Timberborn Colony Control", components: [] };
   }
 }
@@ -42,6 +44,7 @@ function readComponent(id: string): ComponentData | null {
   try {
     return JSON.parse(localStorage.getItem(_compKey(id)) as string);
   } catch {
+    ErrorBus.report(IO0001(id));
     return null;
   }
 }
@@ -155,7 +158,7 @@ function migrateIfNeeded(): boolean {
     console.log("Store: migrated from old format", root.components.length, "components");
     return true;
   } catch (err) {
-    console.error("Store: migration failed", err);
+    ErrorBus.report(IO0002(err));
     return false;
   }
 }

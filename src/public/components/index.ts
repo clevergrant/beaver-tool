@@ -5,3 +5,4 @@ export * from './surface';
 import './tb-component';
 import './tb-color-selector';
 import './tb-node-editor';
+import './tb-error-toast';

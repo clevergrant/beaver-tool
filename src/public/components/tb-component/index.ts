@@ -2,6 +2,7 @@ import styles from './tb-component.scss';
 import { TbSurfaceComponent } from '../surface/tb-surface-component';
 import { Grid, CELL_SIZE, COMP_MIN_WIDTH, COMP_MIN_HEIGHT } from '../../js/grid';
 import { editorState } from '../../js/editor-state';
+import { ErrorBus, IO0003 } from '../../js/errors';
 import type { SurfaceElementConfig, CircuitryData, CircuitryNode, CircuitryEdge } from '../../types';
 
 const sheet = new CSSStyleSheet();
@@ -641,7 +642,7 @@ class TbComponent extends HTMLElement {
     const raw = sessionStorage.getItem("tb-clipboard");
     if (!raw) return;
     let clip: ClipboardData;
-    try { clip = JSON.parse(raw); } catch { return; }
+    try { clip = JSON.parse(raw); } catch { ErrorBus.report(IO0003()); return; }
     if (!clip.surface) return;
 
     const src = clip.surface;
@@ -961,6 +962,7 @@ class TbComponent extends HTMLElement {
         { type: "alert",  tag: "tb-alert",  name: "Alert",         icon: "\u26A0" },
         { type: "color-picker", tag: "tb-color-picker", name: "Color Picker", icon: "\uD83C\uDFA8" },
         { type: "rainbow", tag: "tb-rainbow", name: "Rainbow", icon: "\uD83C\uDF08" },
+        { type: "rate-meter", tag: "tb-rate-meter", name: "Rate Meter", icon: "\u25F7" },
         { type: "camera",  tag: "tb-camera",  name: "Camera Feed", icon: "\u25A3" },
       ].map(et => {
         const tmp = document.createElement(et.tag);
@@ -982,7 +984,7 @@ class TbComponent extends HTMLElement {
       const clipData = sessionStorage.getItem("tb-clipboard");
       if (clipData) {
         let clip: ClipboardData | null = null;
-        try { clip = JSON.parse(clipData); } catch { /* ignore */ }
+        try { clip = JSON.parse(clipData); } catch { ErrorBus.report(IO0003()); }
         if (clip && clip.surface) {
           const fits = this._isSurfaceAreaFree(gridX, gridY, clip.surface.width, clip.surface.height, this._editorItems!);
           const pasteBtn = document.createElement("div");

@@ -164,6 +164,37 @@ SurfaceComponents.register({
   },
 });
 
+// --- Rate Meter ---
+SurfaceComponents.register({
+  type: "rate-meter",
+  name: "Rate Meter",
+  icon: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="8" rx="1.5" fill="#1a1a18" stroke="#555" stroke-width="1.2"/><rect x="3" y="5.5" width="10" height="5" rx="0.5" fill="#0a0a08"/><text x="8" y="9.5" font-size="5" fill="#30ff60" text-anchor="middle" font-family="monospace">0.0</text></svg>',
+  category: "indicator",
+  width: 4,
+  height: 2,
+  resizable: true,
+  factory(id: string, gridX: number, gridY: number): ComponentData {
+    return {
+      id,
+      name: "Rate Meter",
+      x: gridX,
+      y: gridY,
+      w: 4,
+      h: 2,
+      minWidth: 3,
+      minHeight: 2,
+      color: "#1a1a18",
+      surface: [{
+        type: "rate-meter",
+        x: 0, y: 0,
+        width: 4, height: 2,
+        props: {},
+      } as any],
+      circuitry: { nodes: [], edges: [] },
+    };
+  },
+});
+
 // --- Camera Display ---
 SurfaceComponents.register({
   type: "camera-display",

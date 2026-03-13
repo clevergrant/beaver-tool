@@ -144,8 +144,9 @@ export function startLiveView({ port }: LiveViewOptions): void {
     for (let i = visibleLogs.length; i < logSpace; i++) {
       frame += "\x1b[K\n";
     }
-    for (const line of footer) {
-      frame += line + "\x1b[K\n";
+    for (let i = 0; i < footer.length; i++) {
+      frame += footer[i] + "\x1b[K";
+      if (i < footer.length - 1) frame += "\n";
     }
 
     process.stdout.write(frame);

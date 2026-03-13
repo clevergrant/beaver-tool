@@ -1,0 +1,168 @@
+:host {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+}
+
+// Rust-style color tokens
+$rust-error: #ff3030;
+$rust-warning: #ffaa20;
+$rust-note: #4488ff;
+$rust-help: #30ff60;
+$rust-bg: #1e1e1c;
+$rust-border: #3a3a36;
+$rust-text: #c8c4b8;
+$rust-dim: #6a6a60;
+
+.toast {
+  pointer-events: auto;
+  background: $rust-bg;
+  border: 1px solid $rust-border;
+  border-radius: 4px;
+  min-width: 340px;
+  max-width: 520px;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $rust-text;
+  overflow: hidden;
+  animation: toast-in 200ms ease-out;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+  &.dismissing {
+    animation: toast-out 150ms ease-in forwards;
+  }
+}
+
+// Severity-specific left border accent
+.toast--error {
+  border-left: 3px solid $rust-error;
+}
+.toast--warning {
+  border-left: 3px solid $rust-warning;
+}
+.toast--note {
+  border-left: 3px solid $rust-note;
+}
+
+.toast-header {
+  display: flex;
+  align-items: baseline;
+  padding: 8px 10px 4px;
+  gap: 0;
+}
+
+.toast-severity {
+  font-weight: bold;
+}
+.toast--error .toast-severity { color: $rust-error; }
+.toast--warning .toast-severity { color: $rust-warning; }
+.toast--note .toast-severity { color: $rust-note; }
+
+.toast-code {
+  color: $rust-dim;
+}
+
+.toast-title {
+  flex: 1;
+  color: #fff;
+  font-weight: bold;
+}
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: $rust-dim;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 8px;
+  line-height: 1;
+  font-family: inherit;
+
+  &:hover {
+    color: $rust-text;
+  }
+}
+
+.toast-context {
+  padding: 0 10px;
+
+  pre {
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    color: $rust-dim;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+.toast-help,
+.toast-note {
+  padding: 2px 10px 6px;
+  font-size: 11px;
+}
+
+.toast-label {
+  font-weight: bold;
+}
+.toast-label--help { color: $rust-help; }
+.toast-label--note { color: $rust-note; }
+
+.toast-help .toast-text { color: $rust-text; }
+.toast-note .toast-text { color: $rust-text; }
+
+.toast-count {
+  display: inline-block;
+  background: $rust-dim;
+  color: $rust-bg;
+  border-radius: 8px;
+  font-size: 10px;
+  padding: 0 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.toast-progress {
+  height: 2px;
+  width: 100%;
+  transform-origin: left;
+}
+.toast--error .toast-progress { background: $rust-error; }
+.toast--warning .toast-progress { background: $rust-warning; }
+.toast--note .toast-progress { background: $rust-note; }
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+@keyframes progress-shrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}

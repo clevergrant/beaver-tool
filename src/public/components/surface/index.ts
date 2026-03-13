@@ -12,4 +12,5 @@ import './tb-dial';
 import './tb-label';
 import './tb-led';
 import './tb-rainbow';
+import './tb-rate-meter';
 import './tb-toggle';
